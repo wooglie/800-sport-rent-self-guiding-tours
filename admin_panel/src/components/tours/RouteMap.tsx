@@ -14,5 +14,5 @@ export const RouteMap = dynamic(
   {
     ssr: false,
     loading: () => <Skeleton className="h-[360px] w-full rounded-xl" />,
-  }
+  },
 );

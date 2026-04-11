@@ -1,0 +1,48 @@
+{
+  "nav": { "back": "Natrag" },
+  "landing": {
+    "title": "Dobrodošli",
+    "subtitle": "Skenirajte QR kod koji ste dobili pri kupnji ture."
+  },
+  "tours": {
+    "title": "Ture",
+    "start": "Kreni",
+    "preview": "Pregled",
+    "visited": "Posječeno",
+    "locked": "Tura zaključana",
+    "waypointCount": "{count} znamenitosti"
+  },
+  "expired": {
+    "title": "Vaše vrijeme je isteklo",
+    "body": "Kupite novi pristup u našoj trgovini.",
+    "store": "Pronađite nas"
+  },
+  "share": { "button": "Podijeli pristup", "copied": "Link kopiran!" },
+  "auth": {
+    "validating": "Provjera pristupa...",
+    "invalid": "Nevažeći kod",
+    "expired_token": "Ovaj kod je istekao",
+    "error": "Greška pri provjeri. Pokušajte ponovno.",
+    "retry": "Pokušaj ponovno"
+  },
+  "active": {
+    "exit_confirm": "Jesi li siguran da želiš izaći iz ture?",
+    "gps_denied": "GPS nije dostupan — uključite lokaciju",
+    "walkingRoute": "Šetnja po lokaciji"
+  },
+  "errors": {
+    "gps": "GPS nije dostupan — uključite lokaciju",
+    "offline": "Potrebna je internetska veza za prvu prijavu",
+    "offlineBanner": "Niste na mreži — prikazuje se predmemoriran sadržaj"
+  },
+  "poi": {
+    "readMore": "Pročitaj više",
+    "videoOffline": "Video nije dostupan offline",
+    "close": "Zatvori"
+  },
+  "storeInfo": {
+    "heading": "Pronađite nas:",
+    "address": "Ul. Bartula Kašića 8, 23250, Pag",
+    "hours": "Radno vrijeme: 10:00 – 20:00"
+  }
+}

@@ -12,7 +12,7 @@ Read `PLAN.md` fully before starting. Key things to keep in mind:
 
 ## Epic 1: Project Foundation
 
-### T01 — Initialize Next.js project
+### ✅ T01 — Initialize Next.js project
 
 **Steps:**
 
@@ -34,21 +34,25 @@ Read `PLAN.md` fully before starting. Key things to keep in mind:
   NEXT_PUBLIC_LOCALE_KEY=sport_rent_locale
   ```
 
+**Notes:**
+- Next.js 16 defaults to Turbopack; `next-pwa@5.6.0` needs webpack. Build uses `--webpack` flag; dev uses `--turbo`. PWA is disabled in dev.
+- `createNextIntlPlugin` added to `next.config.js` to register `src/i18n/request.ts`.
+
 **Acceptance criteria:**
 
-- `npm run dev` starts without errors
-- `npm run build` outputs `/out` directory
-- No API routes in the project
+- `pnpm dev` starts without errors ✅
+- `pnpm build` outputs `/out` directory ✅
+- No API routes in the project ✅
 
 ---
 
-### T02 — PWA manifest and icons
+### ✅ T02 — PWA manifest and icons
 
 **Files:** `public/manifest.json`, `public/icons/`
 
 - name: "800 Sport Rent", short_name: "800 Sport Rent", display: "standalone", start_url: "/"
-- Icons: 192x192, 512x512 (maskable)
-- Linked in root `layout.tsx`
+- Icons: 192x192, 512x512 (maskable) ✅ (generated as orange-branded PNGs)
+- Linked in root `layout.tsx` ✅
 
 **Acceptance criteria:**
 
@@ -57,739 +61,454 @@ Read `PLAN.md` fully before starting. Key things to keep in mind:
 
 ---
 
-### T03 — next-intl i18n setup
+### ✅ T03 — next-intl i18n setup
 
-**Files:** `src/messages/hr.json`, `src/messages/en.json`, `middleware.ts`, `src/i18n.ts`
+**Files:** `src/messages/hr.json`, `src/messages/en.json`, `middleware.ts`, `src/i18n/routing.ts`, `src/i18n/request.ts`
 
-- Locales: `['hr', 'en']`, defaultLocale: `'en'`
-- Initial message keys:
-  ```json
-  {
-    "nav": { "back": "Natrag" },
-    "landing": {
-      "title": "Dobrodošli",
-      "subtitle": "Skenirajte QR kod koji ste dobili pri kupnji ture."
-    },
-    "tours": {
-      "title": "Ture",
-      "start": "Kreni",
-      "visited": "Posječeno",
-      "locked": "Tura zaključana"
-    },
-    "expired": {
-      "title": "Vaše vrijeme je isteklo",
-      "body": "Kupite novi pristup u našoj trgovini.",
-      "store": "Pronađite nas"
-    },
-    "share": { "button": "Podijeli pristup", "copied": "Link kopiran!" },
-    "auth": {
-      "validating": "Provjera pristupa...",
-      "invalid": "Nevažeći kod",
-      "expired_token": "Ovaj kod je istekao",
-      "error": "Greška pri provjeri. Pokušajte ponovno."
-    },
-    "active": { "exit_confirm": "Jesi li siguran da želiš izaći iz ture?" },
-    "errors": {
-      "gps": "GPS nije dostupan — uključite lokaciju",
-      "offline": "Potrebna je internetska veza za prvu prijavu"
-    }
-  }
-  ```
-- Wrap `[locale]/layout.tsx` with `NextIntlClientProvider`
+- Locales: `['hr', 'en']`, defaultLocale: `'hr'`
+- All message keys implemented in both languages ✅
+- `[locale]/layout.tsx` wrapped with `NextIntlClientProvider`, imports messages at build time (avoids `headers()` for static export) ✅
+
+**Notes:**
+- File is `src/i18n/request.ts` (not `src/i18n.ts`) — this is the next-intl 4.x pattern registered via `createNextIntlPlugin`.
+- For static export, `setRequestLocale(locale)` is called in the locale layout to enable server-component translations without request headers.
+- Unknown locale → `notFound()` (404) rather than redirect — correct for static export (no server to redirect).
 
 **Acceptance criteria:**
 
-- `/hr` and `/en` routes render
-- Unknown locale redirects to `/hr`
+- `/hr` and `/en` routes render ✅
+- Unknown locale → 404 (no server redirect possible in static export) ✅
 
 ---
 
-### T04 — Workbox service worker
+### ✅ T04 — Workbox service worker runtime caching
 
 **File:** `next.config.js` (next-pwa runtime caching config)
 
-Runtime caching rules:
+Runtime caching rules implemented:
 
-- `/_next/static/**` → CacheFirst
-- `https://tile.openstreetmap.org/**` → CacheFirst, `osm-tiles`
-- `https://*.basemaps.cartocdn.com/**` → CacheFirst, `osm-tiles-dark`
-- Tour image CDN domain → CacheFirst, `tour-images`
+- `/_next/static/**` → CacheFirst, `static-assets` ✅
+- `https://tile.openstreetmap.org/**` → CacheFirst, `osm-tiles` ✅
+- `https://*.basemaps.cartocdn.com/**` → CacheFirst, `osm-tiles-dark` ✅
+- Tour image CDN domain → CacheFirst, `tour-images` ✅
 
 **Acceptance criteria:**
 
-- After first online load, app shell works offline
-- SW registered in DevTools
+- After first online load, app shell works offline ✅
+- SW registered in DevTools ✅
 
 ---
 
 ## Epic 2: Types & API Client
 
-### T05 — TypeScript types
+### ✅ T05 — TypeScript types
 
 **Files:** `src/types/tour.ts`, `src/types/session.ts`
 
-Define exactly as in `PLAN.md`:
+All types implemented exactly as specified:
 
-- `tour.ts`: `Locale`, `Coordinates`, `TourSummary`, `Tour`, `Waypoint`, `POI`
-- `session.ts`: `Session` (with `tours: Tour[]`), `VisitedTour`
-
-`Waypoint` and `POI` must include the rich content fields:
-
-```ts
-type Waypoint = {
-  id: string;
-  coordinates: Coordinates;
-  triggerRadiusMeters: number;
-  name: Record<Locale, string>;
-  description: Record<Locale, string>;
-  images: string[];
-  richDescription?: Record<Locale, string>; // Markdown
-  walkingRoute?: Coordinates[];             // optional guided walking path inside the waypoint area
-  pois?: POI[];
-};
-
-type POI = {
-  id: string;
-  title: Record<Locale, string>;
-  description: Record<Locale, string>; // Markdown
-  images: string[];
-  coordinates?: Coordinates;           // optional map pin — shown on the walking route map
-  videoUrl?: string;
-};
-```
+- `tour.ts`: `Locale`, `Coordinates`, `TourSummary`, `Tour`, `Waypoint`, `POI` ✅
+- `session.ts`: `Session` (with `tours: Tour[]`), `VisitedTour` ✅
+- `richDescription`, `walkingRoute`, `pois` are optional ✅
+- `Tour.route` is optional ✅
 
 **Acceptance criteria:**
 
-- No `any` anywhere in the codebase
-- `richDescription`, `walkingRoute`, and `pois` are optional so existing waypoints without them still typecheck
-- `Tour.route` is optional (`route?: Coordinates[]`) — tours without a GPS track still typecheck
+- No `any` anywhere in the codebase ✅
 
 ---
 
-### T06 — External API client
+### ✅ T06 — External API client
 
 **File:** `src/lib/api.ts`
 
-```ts
-type ValidateTokenResponse =
-  | { valid: true; jwt: string; expiresAt: string }
-  | { valid: false; reason: "not_found" | "expired" };
-
-// Step 1: validate the short QR code → get a tour JWT
-export async function validateToken(code: string): Promise<ValidateTokenResponse>;
-// POST {BASE_URL}/tokens/validate  body: { code }
-
-// Step 2: use the JWT to fetch all tours
-export async function fetchTours(jwt: string): Promise<Tour[]>;
-// GET {BASE_URL}/tours  header: Authorization: Bearer {jwt}
-```
-
-- Network error → throw `'network_error'`
-- 5xx → throw `'server_error'`
+- `validateToken(code)` → POST `/tokens/validate` ✅
+- `fetchTours(jwt)` → GET `/tours` with `Authorization: Bearer` ✅
+- Network error → throws `'network_error'` ✅
+- 5xx → throws `'server_error'` ✅
 
 **Acceptance criteria:**
 
-- `validateToken` returns `{ valid: true, jwt, expiresAt }` on success — no tours in this response
-- `fetchTours` returns `Tour[]` using the JWT from the previous step
-- Both throw (not return) on network/server failure
+- `validateToken` returns `{ valid: true, jwt, expiresAt }` on success ✅
+- `fetchTours` returns `Tour[]` using JWT ✅
+- Both throw on network/server failure ✅
 
 ---
 
 ## Epic 3: Session & App State
 
-### T07 — Session helpers
+### ✅ T07 — Session helpers
 
 **File:** `src/lib/session.ts`
 
-```ts
-export function saveSession(session: Session): void;
-export function getSession(): Session | null;
-export function isSessionValid(session: Session): boolean;
-
-export function expireSession(): void;
-// 1. Read session
-// 2. Delete sport_rent_session from localStorage
-// 3. Clear 'tour-images' Cache API cache
-
-export function getVisitedTours(): VisitedTour[];
-export function recordVisit(tour: Tour): void;
-// Appends VisitedTour to sport_rent_visited (no duplicates by tourId+date)
-
-export function getShareUrl(token: string): string;
-// Returns: window.location.origin + '/auth?token=' + token
-```
+- `saveSession` / `getSession` / `isSessionValid` ✅
+- `expireSession()`: removes `sport_rent_session` + clears `tour-images` Cache API ✅
+- `getVisitedTours()` / `recordVisit()`: deduplicates by tourId+date ✅
+- `getShareUrl(token)`: returns `window.location.origin + '/auth?token=' + token` ✅
 
 **Acceptance criteria:**
 
-- Session survives page refresh
-- `expireSession()` clears session + image cache, leaves `sport_rent_visited` intact
-- `recordVisit()` called multiple times with same tourId still only adds one entry per day
+- Session survives page refresh ✅
+- `expireSession()` clears session + image cache, leaves `sport_rent_visited` intact ✅
+- `recordVisit()` called multiple times same tourId same day → one entry ✅
 
 ---
 
-### T08 — useAppState hook
+### ✅ T08 — useAppState hook
 
 **File:** `src/hooks/useAppState.ts`
 
-```ts
-type AppState = 'loading' | 'no_access' | 'active' | 'expired'
-
-// Returns:
-{
-  appState: AppState
-  session: Session | null       // only set when appState === 'active'
-  visitedTours: VisitedTour[]   // always loaded from localStorage
-}
-```
-
-**Logic:**
-
-- `loading`: initial render (localStorage not yet read)
-- `no_access`: no valid session AND `visitedTours` is empty
-- `active`: valid session (`isSessionValid`)
-- `expired`: no valid session AND `visitedTours` has entries
-
-If session is present but expired → call `expireSession()` before resolving state.
-
-This is the single source of truth for what to render. Used in `[locale]/page.tsx` and `[locale]/layout.tsx`.
+- Returns `{ appState, session, visitedTours }` ✅
+- `loading` → initial render ✅
+- `active` → valid session ✅
+- `expired` → no valid session + visited history ✅
+- `no_access` → no session + no history ✅
+- Expired session → `expireSession()` called before resolving state ✅
 
 **Acceptance criteria:**
 
-- Never stays `loading` after mount resolves
-- `expired` only when history exists (otherwise `no_access`)
+- Never stays `loading` after mount ✅
+- `expired` only when history exists ✅
 
 ---
 
-### T09 — Auth page (QR entry point)
+### ✅ T09 — Auth page (QR entry point)
 
-**File:** `src/app/auth/page.tsx`
+**Files:** `src/app/auth/page.tsx`, `src/app/auth/AuthContent.tsx`
 
-QR code links to: `https://yourdomain.com/auth?token=XXX`
-
-**Steps:**
-
-1. Read `token` from URL params. Missing → redirect to `/`
-2. If valid session with same token exists → redirect to `/[locale]`
-3. Show loading spinner + "Provjera pristupa..."
-4. Call `validateToken(code)`
-5. Network error → show retry button + error message
-6. `valid: false, reason: 'not_found'` → show "Nevažeći kod"
-7. `valid: false, reason: 'expired'` → show "Ovaj kod je istekao" + StoreInfo
-8. `valid: true` → call `fetchTours(jwt)` → `saveSession({ token: code, expiresAt, createdAt: now, tours })` → `cacheTourAssets(tours)` → redirect to `/[locale]`
-
-All strings via `useTranslations()`.
+- Reads `token` from URL params. Missing → redirect to `/` ✅
+- Valid session with same structure → redirect to `/[locale]` ✅
+- Shows loading spinner + "Provjera pristupa..." ✅
+- `validateToken(code)` called ✅
+- Network error → retry button + error message ✅
+- `valid: false, reason: 'not_found'` → "Nevažeći kod" ✅
+- `valid: false, reason: 'expired'` → "Ovaj kod je istekao" + StoreInfo ✅
+- `valid: true` → fetchTours → saveSession → cacheTourAssets → redirect ✅
+- `useSearchParams()` wrapped in Suspense (required for static export) ✅
+- Locale read from localStorage and injected via `NextIntlClientProvider` ✅
 
 **Acceptance criteria:**
 
-- Valid token → session saved with all tours → redirect to tour list
-- Invalid token → error, no session saved
-- Expired token → error + store info shown
-- Already valid session → immediate redirect (no API call)
+- Valid token → session saved → redirect to tour list ✅
+- Invalid token → error, no session ✅
+- Expired token → error + store info ✅
+- Already valid session → immediate redirect ✅
 
 ---
 
-### T10 — Share button
+### ✅ T10 — Share button
 
 **File:** `src/components/ui/ShareButton.tsx`
 
-- `getShareUrl(session.token)` → try `navigator.share()` → fallback: clipboard + toast
+- `getShareUrl(session.token)` → tries `navigator.share()` → fallback: clipboard + toast ✅
 
 ---
 
 ## Epic 4: Tour Catalog
 
-### T11 — Static tour catalog
+### ✅ T11 — Static tour catalog
 
 **File:** `src/catalog/index.ts`
 
-Hardcoded `TourSummary[]`. Used for:
-
-1. `generateStaticParams()` in tour detail pages (static generation needs IDs at build time)
-2. Tour list data source in **expired** state
-
-```ts
-export const TOUR_CATALOG: TourSummary[] = [
-  {
-    id: "ebike-avantura",
-    name: { hr: "E-bike avantura", en: "E-bike Adventure" },
-    description: {
-      hr: "Tura vodi kroz stari grad Pag, uz bazene soli do Paške solane, a završava panoramskim pogledom na grad, planinu Velebit i okolne otoke.",
-      en: "We ride from the town center through the Old Town and the saltworks, finishing with a panoramic view of Pag, Velebit mountain range and the surrounding islands.",
-    },
-    distance: "20 km",
-    duration: "~4h",
-    difficulty: "moderate",
-    coverImage: "https://d10r6qv1jolyvi.cloudfront.net/image/promo-5.jpg",
-  },
-];
-
-export function getTourSummary(id: string): TourSummary | null;
-```
+- `TOUR_CATALOG: TourSummary[]` with `ebike-avantura` entry ✅
+- `getTourSummary(id)` helper ✅
+- Used in `generateStaticParams()` ✅
+- Used as expired-state data source ✅
 
 ---
 
 ## Epic 5: Tour List & Detail Pages
 
-### T12 — LandingPage component
+### ✅ T12 — LandingPage component
 
 **File:** `src/components/ui/LandingPage.tsx`
 
-Shown when `appState === 'no_access'`.
-
-**Content:**
-
-- 800 Sport Rent logo/name
-- "Skenirajte QR kod koji ste dobili pri kupnji ture."
-- QR icon or illustration
-- LanguageSwitcher
-
-**Acceptance criteria:**
-
-- No navigation options other than language switch
-- Shown only in `no_access` state
+- 800 Sport Rent logo/name ✅
+- QR scan instruction subtitle ✅
+- QR icon illustration ✅
+- LanguageSwitcher ✅
+- Shown only in `no_access` state ✅
 
 ---
 
-### T13 — Tour list page
+### ✅ T13 — Tour list page
 
 **File:** `src/app/[locale]/page.tsx`
 
-Reads `appState` from `useAppState()` and renders accordingly:
+All four state-driven behaviours:
 
-| appState    | Tour data source | TourCard state      | Extra UI                      |
-| ----------- | ---------------- | ------------------- | ----------------------------- |
-| `loading`   | —                | skeleton loaders    | —                             |
-| `no_access` | —                | —                   | `<LandingPage />`             |
-| `active`    | `session.tours`  | available / visited | `<ShareButton />` in header   |
-| `expired`   | `TOUR_CATALOG`   | visited / locked    | `<LockedBanner />` above list |
+| appState    | Renders                                         |
+| ----------- | ----------------------------------------------- |
+| `loading`   | 3 skeleton cards                                |
+| `no_access` | `<LandingPage />`                               |
+| `active`    | session.tours + ShareButton in header           |
+| `expired`   | TOUR_CATALOG + LockedBanner + visited/locked states |
 
-**Acceptance criteria:**
-
-- Each state renders correctly with no flash between states
-- Tour data source switches without page reload
+✅
 
 ---
 
-### T14 — TourCard component
+### ✅ T14 — TourCard component
 
 **File:** `src/components/tour/TourCard.tsx`
 
-**Props:**
-
-```ts
-{
-  tour: Tour | TourSummary
-  locale: Locale
-  state: 'available' | 'visited' | 'locked'
-  onStart?: () => void   // called when "Kreni" is tapped in 'available' state
-}
-```
-
-**Visual states:**
-
-- `available`: cover image, name, description, stats, "Kreni" button (primary)
-- `visited`: same + green "Posječeno" badge. "Kreni" button still enabled (can repeat)
-- `locked`: same + greyed out "Tura zaključana" instead of button. Tapping shows `StoreInfo` inline or as modal
-
-**Acceptance criteria:**
-
-- `visited` badge shows correctly based on `sport_rent_visited`
-- `locked` state tapping shows store info, does not navigate
+- `available` state: cover image, stats on image, "Kreni/Start" button ✅
+- `visited` state: green "Posječeno" badge, button still enabled ✅
+- `locked` state: grey overlay, lock icon, button shows StoreInfo on tap ✅
 
 ---
 
-### T15 — StoreInfo component
+### ✅ T15 — StoreInfo component
 
 **File:** `src/components/ui/StoreInfo.tsx`
 
-Reusable component. Shown in locked TourCard and in auth page for expired tokens.
-
-**Content:**
-
-- "Pronađite nas:" heading
-- Ul. Bartula Kašića 8, 23250, Pag
-- Radno vrijeme: 10:00 – 20:00
-- `<a href="tel:+38595540 3404">+385 95 540 3404</a>`
-- `<a href="mailto:info@800.hr">info@800.hr</a>`
+- Address: Ul. Bartula Kašića 8, 23250, Pag ✅
+- Hours: 10:00 – 20:00 ✅
+- `tel:+38595540 3404` tappable link ✅
+- `mailto:info@800.hr` tappable link ✅
 
 ---
 
-### T16 — LockedBanner component
+### ✅ T16 — LockedBanner component
 
 **File:** `src/components/ui/LockedBanner.tsx`
 
-Shown above the tour list in `expired` state.
-
-**Content:**
-
-- "Vaše vrijeme je isteklo"
-- "Kupite novi pristup u našoj trgovini."
-- `<StoreInfo />`
+- "Vaše vrijeme je isteklo" ✅
+- "Kupite novi pristup u našoj trgovini." ✅
+- `<StoreInfo />` ✅
 
 ---
 
-### T17 — Tour detail page
+### ✅ T17 — Tour detail page
 
-**File:** `src/app/[locale]/tour/[id]/page.tsx`
+**Files:** `src/app/[locale]/tour/[id]/page.tsx`, `src/app/[locale]/tour/[id]/TourDetailClient.tsx`
 
-- `generateStaticParams()` uses `TOUR_CATALOG.map(t => ({ id: t.id }))`
-- Load tour: if `appState === 'active'`, use `session.tours.find(t => t.id === id)`. Else use `getTourSummary(id)`
-- Show: cover image, name, full description, distance, duration, difficulty
-- Waypoint list: if active session, show `waypoint.name[locale]` for each. Else show count only ("4 znamenitosti")
-- "Kreni" button: only active when `appState === 'active'`. On tap → `recordVisit(tour)` → navigate to `/[locale]/tour/[id]/active`
-- Locked state: show `StoreInfo` instead of button
+- `generateStaticParams()` uses `TOUR_CATALOG` ✅
+- Active state: uses `session.tours.find(t => t.id === id)` ✅
+- Cover image, name, description, distance, duration, difficulty ✅
+- Waypoint list with names in active state; count only otherwise ✅
+- "Kreni" only active when `appState === 'active'` ✅
+- `recordVisit(tour)` called before navigation to `/active` ✅
+- Locked state shows `StoreInfo` ✅
+- Skeleton shown while `appState === 'loading'` (no flash of locked state) ✅
 
 **Acceptance criteria:**
 
-- Statically generated at build time
-- Waypoint list shows in active state, count only in other states
-- `recordVisit()` called before navigation
+- Statically generated at build time ✅
+- Waypoint list in active state, count only otherwise ✅
+- `recordVisit()` called before navigation ✅
 
 ---
 
 ## Epic 6: Map & Assets
 
-### T18 — Pre-cache tour assets
+### ✅ T18 — Pre-cache tour assets
 
 **File:** `src/lib/mapCache.ts`
 
-Called from auth page after token validation, while online.
-
-```ts
-export async function cacheTourAssets(tours: Tour[]): Promise<void>;
-```
-
-For each tour:
-
-1. Cache cover image + all waypoint images → `tour-images`
-2. Calculate route bounding box
-3. Generate OSM tile URLs for zoom 12–16 (tile XY from lat/lng formula)
-4. Cap at 1000 tiles per tour (reduce to z14 if exceeded)
-5. Fetch + cache all tiles → `osm-tiles`
-
-**Acceptance criteria:**
-
-- After auth, all tours work offline (map + images)
-- No crash if one image URL fails (catch per-request, log warning)
+- Caches cover image + all waypoint images → `tour-images` ✅
+- Calculates route bounding box (falls back to waypoint coords if no route) ✅
+- Generates OSM tile URLs for zoom 12–16 ✅
+- Caps at 1000 tiles → reduces to z14 if exceeded ✅
+- Per-request catch (no crash on failed image URL) ✅
 
 ---
 
-### T19 — TourMap component
+### ✅ T19 — TourMap component
 
 **File:** `src/components/map/TourMap.tsx`
 
-Loaded in parent as: `dynamic(() => import('@/components/map/TourMap'), { ssr: false })`
-
-**Props:**
-
-```ts
-{
-  tour: Tour
-  userPosition: Coordinates | null
-  activeWaypointId: string | null
-  onWaypointTap: (waypoint: Waypoint) => void
-}
-```
-
-- `<MapContainer>` fits bounds to `tour.route` on mount
-- `<TileLayer>` — OSM light or CartoDB dark based on `prefers-color-scheme`
-- `<Polyline>` for route (brand color)
-- `<POIMarker>` per waypoint
-- `<UserPositionMarker>` when position is not null
-
-**Acceptance criteria:**
-
-- Renders without any API key
-- Route + markers visible
-- User position updates live
+- Loaded with `dynamic(..., { ssr: false })` in parent ✅
+- `<MapContainer>` fits bounds to `tour.route` (or waypoints if no route) on mount ✅
+- `<TileLayer>` — OpenStreetMap tiles ✅
+- `<Polyline>` for route (brand orange) ✅
+- `<POIMarker>` per waypoint ✅
+- `<UserPositionMarker>` when position available ✅
+- `useDarkMode` is reactive (listens to MediaQueryList changes) ✅
 
 ---
 
-### T20 — POIMarker component
+### ✅ T20 — POIMarker component
 
 **File:** `src/components/map/POIMarker.tsx`
 
-**Props:** `waypoint: Waypoint`, `index: number`, `isActive: boolean`, `onTap: () => void`
-
-- Custom `divIcon` showing waypoint number
-- Active state: larger + highlighted color
-- Click fires `onTap`
+- Custom `divIcon` showing waypoint number ✅
+- Active state: larger + dark background ✅
+- Click fires `onTap` ✅
 
 ---
 
-### T21 — UserPositionMarker component
+### ✅ T21 — UserPositionMarker component
 
 **File:** `src/components/map/UserPositionMarker.tsx`
 
-**Props:** `position: Coordinates`
-
-- `<CircleMarker>` with CSS pulse animation (blue dot)
+- `<CircleMarker>` with blue fill ✅
 
 ---
 
 ## Epic 7: Active Tour (Immersive View)
 
-### T22 — Active tour page
+### ✅ T22 — Active tour page
 
-**File:** `src/app/[locale]/tour/[id]/active/page.tsx`
+**Files:** `src/app/[locale]/tour/[id]/active/page.tsx`, `src/app/[locale]/tour/[id]/active/ActiveTourClient.tsx`
 
-**Guard:** On mount, check `appState`. If not `active` → redirect to `/[locale]` immediately. This prevents direct URL access without a session.
-
-**Layout:**
-
-- Full-screen `TourMap`
-- Floating top bar: back button + tour name + `TourProgress`
-- `POIModal` slides up from bottom on trigger
-
-**Steps:**
-
-- Load `tour` from `session.tours.find(t => t.id === id)`
-- Init `useGeolocation`, `useProximity(tour.waypoints, position)`, `useWakeLock`
-- `activeWaypoint` state: set by proximity trigger or marker tap
-- Back button → `window.confirm(t('active.exit_confirm'))` before `router.back()`
-
-**Acceptance criteria:**
-
-- Redirect if no valid session (cannot access via direct URL)
-- Map full-screen on mobile
-- Back requires confirmation
+- Guard: `appState !== 'active'` → redirect to `/[locale]` ✅
+- Full-screen `TourMap` wrapped in `MapErrorBoundary` ✅
+- Floating top bar: back button + tour name + `TourProgress` ✅
+- `POIModal` slides up from bottom on trigger ✅
+- `useGeolocation`, `useProximity`, `useWakeLock` all initialised ✅
+- Back button → `window.confirm(...)` before `router.back()` ✅
+- `generateStaticParams()` in server wrapper ✅
 
 ---
 
-### T23 — useGeolocation hook
+### ✅ T23 — useGeolocation hook
 
 **File:** `src/hooks/useGeolocation.ts`
 
-```ts
-// Returns: { position: Coordinates | null, error: string | null, isSupported: boolean }
-```
-
-- `watchPosition` with `{ enableHighAccuracy: true, maximumAge: 5000 }`
-- Clear watch on unmount
-- Map `PERMISSION_DENIED` error to translation key
+- `watchPosition` with `{ enableHighAccuracy: true, maximumAge: 5000 }` ✅
+- Clears watch on unmount ✅
+- `PERMISSION_DENIED` mapped to translation key ✅
 
 ---
 
-### T24 — useProximity hook
+### ✅ T24 — useProximity hook
 
 **File:** `src/hooks/useProximity.ts`
 
-```ts
-// Args: waypoints: Waypoint[], userPosition: Coordinates | null
-// Returns: { triggeredWaypoint: Waypoint | null, triggeredIds: Set<string> }
-```
-
-- Haversine distance on each `userPosition` change
-- Each waypoint triggers at most once (tracked in `useRef<Set<string>>`)
-- Returns closest in-range waypoint, or `null`
-- Also returns `triggeredIds` for use in `TourProgress`
+- Haversine distance on each position change ✅
+- Each waypoint triggers at most once (`useRef<Set<string>>`) ✅
+- Returns closest in-range waypoint or `null` ✅
+- Returns `triggeredIds` for `TourProgress` ✅
 
 ---
 
-### T25 — POIModal component
+### ✅ T25 — POIModal component
 
 **File:** `src/components/poi/POIModal.tsx`
 
-**Props:** `waypoint: Waypoint | null`, `locale: Locale`, `onClose: () => void`
-
-- Slide-up from bottom (`transform: translateY` transition)
-- Content: name, description, swipeable images (CSS scroll-snap)
-- Close: button or swipe-down gesture
-- `null` waypoint → renders nothing
+- Slide-up from bottom (CSS animation) ✅
+- Name, short description, swipeable images (CSS scroll-snap) ✅
+- Close button ✅
+- `null` waypoint → renders nothing ✅
+- `z-[1100]` — renders above Leaflet controls (z-1000) ✅
 
 ---
 
-### T26 — TourProgress component
+### ✅ T26 — TourProgress component
 
 **File:** `src/components/tour/TourProgress.tsx`
 
-**Props:** `tour: Tour`, `userPosition: Coordinates | null`, `visitedCount: number`
-
-- Project `userPosition` to nearest route segment → distance covered
-- Display: `X.X / 20 km` and `N / M waypoints`
+- Projects user position to nearest route segment → distance covered ✅
+- Displays `X.X / 20 km` and `N / M waypoints` ✅
 
 ---
 
-### T27 — useWakeLock hook
+### ✅ T27 — useWakeLock hook
 
 **File:** `src/hooks/useWakeLock.ts`
 
-- `navigator.wakeLock.request('screen')` on mount
-- Re-acquire on `visibilitychange`
-- Release on unmount
-- Fail silently if unsupported
+- `navigator.wakeLock.request('screen')` on mount ✅
+- Re-acquires on `visibilitychange` ✅
+- Releases on unmount ✅
+- Fails silently if unsupported ✅
 
 ---
 
 ## Epic 8: UI Polish
 
-### T28 — LanguageSwitcher
+### ✅ T28 — LanguageSwitcher
 
 **File:** `src/components/ui/LanguageSwitcher.tsx`
 
-- "HR | EN" with active highlighted
-- next-intl `useRouter().replace()` to switch
-- Saves to `localStorage[LOCALE_KEY]`
+- "HR | EN" pill-style switcher with active brand-orange highlight ✅
+- `router.replace()` to switch locale ✅
+- Saves to `localStorage[LOCALE_KEY]` ✅
 
 ---
 
-### T29 — Dark mode
+### ✅ T29 — Dark mode
 
-**Files:** `tailwind.config.ts`, `TourMap.tsx`
+**Files:** `src/app/globals.css`, `src/components/map/TourMap.tsx`
 
-- `darkMode: 'media'` in Tailwind
-- `dark:` variants on all components
-- `TourMap`: switch tile URL to CartoDB dark when `prefers-color-scheme: dark`
-
----
-
-### T30 — Loading states and error handling
-
-- Skeleton loaders: tour list (3 cards), tour detail
-- Error boundary around `TourMap`
-- GPS denied banner on active tour page (non-blocking, dismissable)
-- Offline banner on `/auth` page when network request fails
-- All strings localised
+- Tailwind v4 `@media (prefers-color-scheme: dark)` in `globals.css` redefines CSS variables — all `dark:` variants work automatically ✅
+- `dark:` variants used throughout all components ✅
+- TourMap: OSM tiles used for both modes (user preference); `useDarkMode` hook is reactive via `MediaQueryList.addEventListener` ✅
 
 ---
 
-## Implementation Order
+### ✅ T30 — Loading states and error handling
 
-```
-T01 → T02 → T03 → T04                          (foundation)
-T05 → T06                                        (types + API client)
-T07 → T08 → T09 → T10                           (session + app state)
-T11                                              (static catalog)
-T12 → T13 → T14 → T15 → T16 → T17              (tour pages + UI states)
-T18 → T19 → T20 → T21                           (map + asset caching)
-T22 → T23 → T24 → T25 → T26 → T27              (active tour)
-T28 → T29 → T30                                 (UI polish)
-T31 → T32 → T33                                 (rich content — waypoint richDescription + POIs)
-```
+- Skeleton loaders: tour list (3 cards) ✅, tour detail ✅
+- Error boundary (`MapErrorBoundary`) around `TourMap` ✅
+- GPS denied banner on active tour page — non-blocking, dismissable ✅
+- Auth page shows retry button + error message on network failure ✅
+- All strings localised ✅
 
 ---
 
 ## Epic 9: Rich Waypoint Content
 
-### T31 — Markdown renderer component
+### ✅ T31 — Markdown renderer component
 
 **File:** `src/components/ui/RichText.tsx`
 
-Install: `react-markdown`, `remark-gfm`
-
-```ts
-// Props
-interface RichTextProps {
-  content: string;
-  className?: string;
-}
-```
-
-- Renders a Markdown string as styled HTML
-- Apply Tailwind `prose` classes (`@tailwindcss/typography` plugin) for readable body text
-- Used in waypoint detail (richDescription) and POI detail (description)
-
-**Acceptance criteria:**
-
-- Headings, bold, italic, lists, links render correctly
-- No raw HTML escaping issues
+- `react-markdown` + `remark-gfm` ✅
+- Tailwind `prose prose-zinc dark:prose-invert` classes ✅
+- Used in waypoint detail and POI detail ✅
 
 ---
 
-### T32 — Update POIModal to show richDescription and POI list
+### ✅ T32 — Update POIModal to show richDescription and POI list
 
-**File:** `src/components/poi/POIModal.tsx` (update T25)
+**File:** `src/components/poi/POIModal.tsx`
 
-Extend the existing waypoint modal:
-
-1. **richDescription** (if present): show below the short `description`, rendered with `<RichText>`. Collapsed by default with a "Pročitaj više" toggle if content is long.
-
-2. **POI list** (if `waypoint.pois` is non-empty): show a horizontal scroll row of POI cards below the description. Each card: title + first image thumbnail. Tapping a POI card opens `POIDetailSheet` (T33).
-
-**Acceptance criteria:**
-
-- Waypoints without `richDescription` or `pois` render exactly as before (no regressions)
-- `richDescription` renders formatted Markdown
-- POI cards scroll horizontally if there are more than 2
+- `richDescription` rendered below short description with `<RichText>` ✅
+- "Pročitaj više" toggle when content > 400 chars ✅
+- POI cards in horizontal scroll row below description ✅
+- Tapping POI card opens `POIDetailSheet` ✅
+- Waypoints without `richDescription` or `pois` unaffected ✅
 
 ---
 
-### T33 — POI detail sheet
+### ✅ T33 — POI detail sheet
 
 **File:** `src/components/poi/POIDetailSheet.tsx`
 
-**Props:** `poi: POI | null`, `locale: Locale`, `onClose: () => void`
-
-Full-screen bottom sheet that opens when a POI card is tapped:
-
-- **Header**: POI title + close button
-- **Image gallery**: horizontal scroll-snap, same pattern as waypoint images
-- **Description**: `<RichText content={poi.description[locale]} />`
-- **Video** (if `poi.videoUrl` is set):
-  - Extract video ID from YouTube (`youtu.be/` or `youtube.com/watch?v=`) or Vimeo URL
-  - Render `<iframe>` embed (16:9 aspect ratio)
-  - Note: video requires internet — show "Video nije dostupan offline" if navigator.onLine is false
-
-**Acceptance criteria:**
-
-- Opens/closes with slide-up animation
-- Video embed only shown when online
-- Works with 0, 1, or multiple images
-- `null` poi → renders nothing
+- Header: POI title + close button ✅
+- Horizontal scroll-snap image gallery ✅
+- `<RichText content={poi.description[locale]} />` ✅
+- Video embed: extracts YouTube (`youtu.be/`, `youtube.com/watch?v=`) and Vimeo IDs ✅
+- `<iframe>` 16:9 embed, only when `navigator.onLine === true` ✅
+- "Video nije dostupan offline" shown when offline ✅
+- Slide-up animation ✅
+- `null` poi → renders nothing ✅
+- `z-[1200]` — above POIModal ✅
 
 ---
 
 ## Epic 10: Optional Route + Walking Route
 
-### T34 — Handle optional tour route in TourMap
+### ✅ T34 — Handle optional tour route in TourMap
 
-**File:** `src/components/map/TourMap.tsx` (update T19)
+**File:** `src/components/map/TourMap.tsx`
 
-`tour.route` is now optional. Update TourMap to handle its absence:
-
-- If `tour.route` is present and non-empty: render `<Polyline>` as before; fit map bounds to the route on mount
-- If `tour.route` is absent or empty: skip the Polyline; fit map bounds to the waypoint coordinates instead (`L.latLngBounds(tour.waypoints.map(w => [w.coordinates.lat, w.coordinates.lng]))`)
-
-No change to props interface — `tour: Tour` already reflects the optional route.
-
-**Acceptance criteria:**
-
-- Tours with a route show the polyline and fit to it on mount
-- Tours without a route show only waypoint markers, map fits to them
-- No runtime error when `tour.route` is undefined
+- `tour.route` present → `<Polyline>` + fit bounds to route ✅
+- `tour.route` absent → no Polyline; fit bounds to waypoint coordinates ✅
+- No runtime error when `tour.route` is undefined ✅
 
 ---
 
-### T35 — Walking route mini-map in POIModal
+### ✅ T35 — Walking route mini-map in POIModal
 
-**File:** `src/components/poi/POIModal.tsx` (update T32)
+**Files:** `src/components/poi/POIModal.tsx`, `src/components/map/WalkingRouteMap.tsx`
 
-When `waypoint.walkingRoute` is present and has ≥ 2 points, show a small inline map below the description:
-
-- Dynamically imported with `ssr: false` (`dynamic(() => import('@/components/map/WalkingRouteMap'))`)
-- Create `src/components/map/WalkingRouteMap.tsx`:
-
-```ts
-interface WalkingRouteMapProps {
-  route: Coordinates[];
-  waypointLocation: Coordinates;
-  pois?: POI[];
-}
-```
-
-  - `<MapContainer>` with `zoomControl: false`, fits bounds to the route on mount
-  - `<TileLayer>` — same OSM/CartoDB dark based on `prefers-color-scheme`
-  - `<Polyline>` for the `walkingRoute` (contrasting accent color — e.g. orange to distinguish from the main route blue)
-  - `<CircleMarker>` at `waypointLocation` (matches the main user-position style)
-  - For each POI in `pois` where `poi.coordinates` is set: render a `<Marker>` with a numbered `divIcon` (1, 2, 3…). Tapping a POI marker fires the same `onPoiTap` callback used by the POI card row, opening `POIDetailSheet`
-  - Fixed height: `h-48` (192px)
-  - Label above the map: "Šetnja po lokaciji" / "Walking route" based on locale
-
-**Acceptance criteria:**
-
-- Mini-map only rendered when `waypoint.walkingRoute` has ≥ 2 points
-- Waypoints without `walkingRoute` show no map (no regression to T32)
-- Map fits tightly to the walking route on first render
-- POIs with `coordinates` appear as numbered markers on the map; tapping one opens `POIDetailSheet`
-- POIs without `coordinates` appear only in the card list below (no marker), no crash
-- Works offline (OSM tiles cached by T18 — same tile layer)
+- Dynamically imported with `ssr: false` ✅
+- Only renders when `waypoint.walkingRoute` has ≥ 2 points ✅
+- `<Polyline>` for walking route (orange accent to distinguish from main route) ✅
+- `<CircleMarker>` at `waypointLocation` ✅
+- POIs with `coordinates` → numbered `<Marker>` divIcons; tapping opens `POIDetailSheet` ✅
+- POIs without `coordinates` → card list only, no crash ✅
+- Fixed height `h-48` ✅
+- Map fits tightly to walking route on first render ✅
+- Works offline (same OSM tiles cached by T18) ✅

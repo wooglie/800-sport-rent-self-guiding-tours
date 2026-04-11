@@ -1,0 +1,48 @@
+{
+  "nav": { "back": "Back" },
+  "landing": {
+    "title": "Welcome",
+    "subtitle": "Scan the QR code you received when purchasing your tour."
+  },
+  "tours": {
+    "title": "Tours",
+    "start": "Start",
+    "preview": "Preview",
+    "visited": "Visited",
+    "locked": "Tour locked",
+    "waypointCount": "{count} points of interest"
+  },
+  "expired": {
+    "title": "Your time has expired",
+    "body": "Purchase new access at our store.",
+    "store": "Find us"
+  },
+  "share": { "button": "Share access", "copied": "Link copied!" },
+  "auth": {
+    "validating": "Validating access...",
+    "invalid": "Invalid code",
+    "expired_token": "This code has expired",
+    "error": "Validation error. Please try again.",
+    "retry": "Try again"
+  },
+  "active": {
+    "exit_confirm": "Are you sure you want to exit the tour?",
+    "gps_denied": "GPS unavailable — please enable location",
+    "walkingRoute": "Walking route"
+  },
+  "errors": {
+    "gps": "GPS unavailable — please enable location",
+    "offline": "Internet connection required for first login",
+    "offlineBanner": "You're offline — cached content only"
+  },
+  "poi": {
+    "readMore": "Read more",
+    "videoOffline": "Video unavailable offline",
+    "close": "Close"
+  },
+  "storeInfo": {
+    "heading": "Find us:",
+    "address": "Ul. Bartula Kašića 8, 23250, Pag",
+    "hours": "Opening hours: 10:00 – 20:00"
+  }
+}
