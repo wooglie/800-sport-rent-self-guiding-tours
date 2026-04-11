@@ -1,0 +1,19 @@
+version = 0.1
+
+[default]
+[default.global.parameters]
+stack_name = "800-backend"
+region = "eu-central-1"
+
+[default.build.parameters]
+cached = true
+parallel = true
+
+[default.deploy.parameters]
+capabilities = "CAPABILITY_NAMED_IAM"
+confirm_changeset = false
+resolve_s3 = true
+stack_name = "sport-rent-backend"
+s3_prefix = "sport-rent-backend"
+parameter_overrides = "AdminJwtExpiryMinutes=\"15\" AdminRefreshExpiryDays=\"30\" TourAppUrl=\"https://app.sport-rent.800.hr\" AdminRefreshSecret=\"794549cfd27b1ff4ea33a9d75a22703ec50e64d7db68b42dfbc69b9d11038b37\" AdminApiKey=\"4085e97e766f86aea0c264080c9e491da4a0174234070cd1671e6574f1970764\" TourJwtSecret=\"65d94b960f2a9f8ecff417759035182b19232b4293524da4adaf2ac2072b3dfd\" AdminJwtSecret=\"16ad8acd0c597907bce2f16db3db4d57a38180660e542dd19060ddc52db77cb9\""
+image_repositories = []
