@@ -101,11 +101,12 @@ async function doRefresh(refreshToken: string): Promise<AdminSession> {
   if (!res.ok) throw new Error("Refresh failed");
 
   const data: RefreshResponse = await res.json();
+  const current = getSession();
   const session: AdminSession = {
     accessToken: data.accessToken,
-    refreshToken: data.refreshToken,
+    refreshToken: current?.refreshToken ?? refreshToken,
     accessExpiresAt: decodeJwtExpiry(data.accessToken),
-    email: getSession()?.email ?? "",
+    email: current?.email ?? "",
   };
   saveSession(session);
   return session;
