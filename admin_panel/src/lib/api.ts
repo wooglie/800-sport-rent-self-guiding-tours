@@ -183,6 +183,10 @@ export async function createToken(
   });
 }
 
+export async function deleteToken(code: string): Promise<void> {
+  return apiFetch<void>(`/tokens/${code}`, { method: "DELETE" });
+}
+
 export async function getTokenStats(): Promise<TokenStats> {
   return apiFetch<TokenStats>("/tokens/stats");
 }

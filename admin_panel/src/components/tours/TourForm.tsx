@@ -85,7 +85,7 @@ export function TourForm({
       setValidationError("Naziv na HR i EN je obavezan.");
       return;
     }
-    if (!parsedRoute) {
+    if (routeRaw.trim() && !parsedRoute) {
       setValidationError(
         "Ruta mora biti validan JSON niz s najmanje 2 koordinate ({lat, lng})."
       );
@@ -105,7 +105,7 @@ export function TourForm({
       difficulty,
       coverImage,
       startLocation: { lat: startLat, lng: startLng },
-      route: parsedRoute,
+      ...(parsedRoute ? { route: parsedRoute } : {}),
       waypoints,
     };
 
@@ -338,7 +338,7 @@ export function TourForm({
       {/* Route */}
       <div>
         <label htmlFor="route" className={labelClass}>
-          Ruta (JSON niz koordinata)
+          Ruta (opcionalno)
         </label>
         <textarea
           id="route"
@@ -353,7 +353,7 @@ export function TourForm({
             ? `${parsedRoute.length} točaka`
             : routeRaw.trim()
             ? "Neispravan JSON"
-            : "Zalijepite JSON niz koordinata"}
+            : "Opcionalno — zalijepite JSON niz koordinata"}
         </p>
       </div>
 

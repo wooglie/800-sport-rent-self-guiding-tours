@@ -130,6 +130,7 @@ export function RouteMapInner({
         route={route}
         waypoints={waypoints}
         startLocation={startLocation}
+        activeLocale={activeLocale}
       />
     </MapContainer>
   );

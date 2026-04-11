@@ -8,7 +8,7 @@ Read `PLAN.md` fully before starting. Key things to keep in mind:
 - QR code generated client-side with `qrcode` package
 - Tour form handles multilingual fields + nested waypoints + POIs with rich text
 
-> ✅ **Tickets A01–A29 are complete.** See A30+ below for new work.
+> ✅ **Tickets A01–A33 are complete.**
 
 ---
 
@@ -520,6 +520,7 @@ type POI = {
   title: { hr: string; en: string };
   description: { hr: string; en: string }; // Markdown
   images: string[];
+  coordinates?: { lat: number; lng: number }; // optional map pin
   videoUrl?: string;
 };
 ```
@@ -530,6 +531,7 @@ Each POI row (collapsible card):
 - Title input (HR or EN based on `activeLocale`)
 - `description`: `RichTextEditor` (A30) — HR or EN based on `activeLocale`
 - Image URLs: list of text inputs + "Dodaj sliku" button
+- **Coordinates**: `lat` + `lng` number inputs (optional, side by side) — "Lokacija na karti (optional)"
 - Video URL: single text input, optional (YouTube or Vimeo embed URL)
 - Delete POI button
 - Move up / move down buttons
@@ -540,4 +542,67 @@ Each POI row (collapsible card):
 
 - Adding/removing/reordering POIs works
 - Switching locale shows correct language fields; other locale data preserved
+- Coordinates fields are optional — leaving them blank omits `coordinates` from the submitted POI
 - Video URL field accepts any URL (no validation beyond non-empty string)
+
+---
+
+### A32 — Delete token (unused only)
+
+**Files:** `src/lib/api.ts` (add `deleteToken`), `src/components/tokens/TokenTable.tsx` (add delete column)
+
+**API function:**
+
+```ts
+export const deleteToken = (code: string) =>
+  apiFetch(`/tokens/${code}`, { method: 'DELETE' });
+```
+
+**TokenTable changes:**
+
+- Add a "Obriši" (delete) column — only rendered for tokens with `status === 'not_scanned'`
+- Clicking shows `ConfirmDialog`: "Jesi li siguran da želiš obrisati ovaj token?"
+- On confirm: call `deleteToken(code)` → remove token from list on success
+- Show `ErrorMessage` if API returns 403 (already used) or any other error
+- Tokens with `status === 'active'` or `'expired'` show no delete button (they've been scanned)
+
+**Acceptance criteria:**
+
+- Delete button only visible on `not_scanned` tokens
+- Confirm dialog appears before delete
+- Token disappears from list immediately on success
+- 403 response shows an inline error message
+
+---
+
+## Epic 10: Optional Route + Walking Route
+
+### A33 — Optional tour route + waypoint walking route
+
+**Files:** `src/components/tours/TourForm.tsx` (A21 update), `src/components/tours/WaypointEditor.tsx` (A20 update)
+
+#### TourForm changes (make `route` optional)
+
+- Remove `route` from the required validation list — a tour can now be saved with no route
+- Update the route textarea label to: **"Route (optional)"**
+- Update the hint text below to: "JSON array of {lat, lng} — leave empty if no GPS track available"
+- Update point count display: only show "N points" when there is parseable content; if empty show nothing
+- Validation rule: if the field is non-empty, it must still be parseable JSON with ≥ 2 points (invalid JSON or fewer than 2 points still blocks submit with an error)
+
+#### WaypointEditor changes (add `walkingRoute`)
+
+Each waypoint card gains a collapsible **"Walking route"** section below the `richDescription` field:
+
+- Toggle button: "Walking route" with a chevron (collapsed by default)
+- When expanded: textarea for JSON array of `{lat, lng}` — same UX pattern as the main route textarea in TourForm
+- Show point count below the textarea when content is parseable
+- No validation beyond parseable JSON (min 2 points not enforced — the walking route is fully optional and informational)
+- Store as `walkingRoute: Coordinates[] | undefined` on the Waypoint — omit the field entirely when the textarea is empty
+
+**Acceptance criteria:**
+
+- TourForm submits successfully with an empty route textarea
+- TourForm still rejects non-empty route with fewer than 2 valid points
+- WaypointEditor walking route section is collapsed by default
+- Entering valid JSON in the walking route textarea stores the coordinates correctly
+- Clearing the walking route textarea omits `walkingRoute` from the submitted waypoint (no empty array)

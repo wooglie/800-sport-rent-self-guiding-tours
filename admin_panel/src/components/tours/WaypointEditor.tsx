@@ -1,9 +1,28 @@
 "use client";
 
 import { useState } from "react";
-import type { Waypoint, Locale } from "@/types/tour";
+import type { Waypoint, Locale, Coordinates } from "@/types/tour";
 import { ImageLightbox } from "@/components/ui/ImageLightbox";
 import { LocationPicker } from "./LocationPicker";
+import { RichTextEditor } from "@/components/ui/RichTextEditor";
+import { POIEditor } from "./POIEditor";
+
+function parseCoordinates(raw: string): Coordinates[] | null {
+  try {
+    const parsed = JSON.parse(raw);
+    if (
+      Array.isArray(parsed) &&
+      parsed.length >= 1 &&
+      parsed.every(
+        (p) => typeof p.lat === "number" && typeof p.lng === "number"
+      )
+    )
+      return parsed as Coordinates[];
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 function generateId(hrName: string, index: number): string {
   const slug = hrName
@@ -21,7 +40,9 @@ function emptyWaypoint(index: number): Waypoint {
     triggerRadiusMeters: 50,
     name: { hr: "", en: "" },
     description: { hr: "", en: "" },
+    richDescription: { hr: "", en: "" },
     images: [],
+    pois: [],
   };
 }
 
@@ -38,6 +59,9 @@ export function WaypointEditor({
 }: WaypointEditorProps) {
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [pickerIndex, setPickerIndex] = useState<number | null>(null);
+  const [expandedPoi, setExpandedPoi] = useState<Set<number>>(new Set());
+  const [expandedWalkingRoute, setExpandedWalkingRoute] = useState<Set<number>>(new Set());
+  const [walkingRouteRaw, setWalkingRouteRaw] = useState<Record<number, string>>({});
 
   function update(index: number, patch: Partial<Waypoint>) {
     const updated = waypoints.map((w, i) =>
@@ -57,6 +81,18 @@ export function WaypointEditor({
     update(index, {
       description: { ...waypoints[index].description, [locale]: value },
     });
+  }
+
+  function updateRichDesc(index: number, locale: Locale, value: string) {
+    update(index, {
+      richDescription: { ...waypoints[index].richDescription, [locale]: value },
+    });
+  }
+
+  function updateWalkingRoute(index: number, raw: string) {
+    setWalkingRouteRaw((prev) => ({ ...prev, [index]: raw }));
+    const parsed = parseCoordinates(raw);
+    update(index, { walkingRoute: raw.trim() ? (parsed ?? undefined) : undefined });
   }
 
   function addImageUrl(index: number) {
@@ -316,6 +352,109 @@ export function WaypointEditor({
             >
               Dodaj sliku
             </button>
+          </div>
+
+          {/* Rich description */}
+          <div className="mt-3">
+            <label className="block text-xs font-medium text-slate-600">
+              Bogati opis ({activeLocale.toUpperCase()}) — Markdown
+            </label>
+            <div className="mt-1">
+              <RichTextEditor
+                value={wp.richDescription?.[activeLocale] ?? ""}
+                onChange={(v) => updateRichDesc(index, activeLocale, v)}
+                placeholder={activeLocale === "hr" ? "Detaljni opis u Markdown formatu..." : "Detailed description in Markdown..."}
+                minHeight={180}
+              />
+            </div>
+          </div>
+
+          {/* POI section */}
+          <div className="mt-3">
+            <button
+              type="button"
+              onClick={() =>
+                setExpandedPoi((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(index)) next.delete(index);
+                  else next.add(index);
+                  return next;
+                })
+              }
+              className="flex w-full items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100"
+            >
+              <span>
+                POI ({wp.pois?.length ?? 0})
+              </span>
+              <svg
+                className={`h-3.5 w-3.5 text-slate-400 transition-transform ${expandedPoi.has(index) ? "rotate-180" : ""}`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {expandedPoi.has(index) && (
+              <div className="mt-2">
+                <POIEditor
+                  pois={wp.pois ?? []}
+                  onChange={(pois) => update(index, { pois })}
+                  activeLocale={activeLocale}
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Walking route section */}
+          <div className="mt-3">
+            <button
+              type="button"
+              onClick={() =>
+                setExpandedWalkingRoute((prev) => {
+                  const next = new Set(prev);
+                  if (next.has(index)) next.delete(index);
+                  else next.add(index);
+                  return next;
+                })
+              }
+              className="flex w-full items-center justify-between rounded-lg bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100"
+            >
+              <span>
+                Ruta hodanja{wp.walkingRoute?.length ? ` (${wp.walkingRoute.length} točaka)` : " (opcionalno)"}
+              </span>
+              <svg
+                className={`h-3.5 w-3.5 text-slate-400 transition-transform ${expandedWalkingRoute.has(index) ? "rotate-180" : ""}`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {expandedWalkingRoute.has(index) && (
+              <div className="mt-2">
+                <textarea
+                  rows={5}
+                  value={walkingRouteRaw[index] ?? ""}
+                  onChange={(e) => updateWalkingRoute(index, e.target.value)}
+                  placeholder='[{"lat": 45.123, "lng": 16.456}, ...]'
+                  className="block w-full rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-mono text-xs focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                />
+                {(() => {
+                  const raw = walkingRouteRaw[index] ?? "";
+                  if (!raw.trim()) return null;
+                  const parsed = parseCoordinates(raw);
+                  return (
+                    <p className={`mt-1 text-xs ${parsed ? "text-emerald-600" : "text-rose-500"}`}>
+                      {parsed ? `${parsed.length} točaka` : "Neispravan JSON"}
+                    </p>
+                  );
+                })()}
+              </div>
+            )}
           </div>
         </div>
       ))}

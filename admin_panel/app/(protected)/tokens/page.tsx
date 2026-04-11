@@ -38,7 +38,10 @@ export default function TokensPage() {
       )}
 
       {tokens ? (
-        <TokenTable tokens={tokens} />
+        <TokenTable
+          tokens={tokens}
+          onDelete={(code) => setTokens((prev) => prev!.filter((t) => t.code !== code))}
+        />
       ) : (
         <Skeleton className="h-64 w-full" />
       )}

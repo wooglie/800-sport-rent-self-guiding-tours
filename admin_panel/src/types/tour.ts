@@ -5,13 +5,25 @@ export type Coordinates = {
   lng: number;
 };
 
+export type POI = {
+  id: string;
+  title: Record<Locale, string>;
+  description: Record<Locale, string>; // Markdown
+  images: string[];
+  coordinates?: Coordinates;
+  videoUrl?: string;
+};
+
 export type Waypoint = {
   id: string;
   coordinates: Coordinates;
   triggerRadiusMeters: number;
   name: Record<Locale, string>;
   description: Record<Locale, string>;
+  richDescription: Record<Locale, string>; // Markdown
   images: string[];
+  pois: POI[];
+  walkingRoute?: Coordinates[];
 };
 
 export type Tour = {
@@ -23,7 +35,7 @@ export type Tour = {
   difficulty: "easy" | "moderate" | "hard";
   coverImage: string;
   startLocation: Coordinates;
-  route: Coordinates[];
+  route?: Coordinates[];
   waypoints: Waypoint[];
 };
 
