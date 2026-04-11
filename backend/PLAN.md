@@ -90,7 +90,7 @@ Fields:
   difficulty  String  ("easy" | "moderate" | "hard")
   coverImage  String  (absolute URL)
   startLocation  Map  { lat: Number, lng: Number }
-  route       List of { lat: Number, lng: Number }
+  route       List of { lat: Number, lng: Number }?  — optional GPS track for the whole tour
   waypoints   List of {
     id: String
     coordinates: { lat, lng }
@@ -99,11 +99,13 @@ Fields:
     description: { hr, en }          — short description (plain text)
     images: List of String (URLs)
     richDescription: { hr, en }?     — long description (Markdown)
+    walkingRoute: List of { lat, lng }?  — optional walking path inside the waypoint area
     pois: List of {                  — optional sub-points of interest
       id: String
       title: { hr, en }
       description: { hr, en }        — Markdown
       images: List of String (URLs)
+      coordinates: { lat, lng }?     — optional map pin for this POI
       videoUrl: String?              — YouTube / Vimeo embed URL
     }?
   }

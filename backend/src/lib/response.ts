@@ -39,8 +39,8 @@ export function unauthorized(message = "Unauthorized"): APIGatewayResponse {
   return respond(401, { error: message });
 }
 
-export function forbidden(): APIGatewayResponse {
-  return respond(403, { error: "Forbidden" });
+export function forbidden(message = "Forbidden"): APIGatewayResponse {
+  return respond(403, { error: message });
 }
 
 export function notFound(message = "Not found"): APIGatewayResponse {

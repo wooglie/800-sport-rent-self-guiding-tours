@@ -144,6 +144,7 @@ type Waypoint = {
   description: Record<Locale, string>;
   images: string[];
   richDescription?: Record<Locale, string>; // Markdown
+  walkingRoute?: Coordinates[];             // optional guided walking path inside the waypoint area
   pois?: POI[];
 };
 
@@ -152,6 +153,7 @@ type POI = {
   title: Record<Locale, string>;
   description: Record<Locale, string>; // Markdown
   images: string[];
+  coordinates?: Coordinates;           // optional map pin — shown on the walking route map
   videoUrl?: string;
 };
 ```
@@ -159,7 +161,8 @@ type POI = {
 **Acceptance criteria:**
 
 - No `any` anywhere in the codebase
-- `richDescription` and `pois` are optional so existing waypoints without them still typecheck
+- `richDescription`, `walkingRoute`, and `pois` are optional so existing waypoints without them still typecheck
+- `Tour.route` is optional (`route?: Coordinates[]`) — tours without a GPS track still typecheck
 
 ---
 
@@ -733,3 +736,60 @@ Full-screen bottom sheet that opens when a POI card is tapped:
 - Video embed only shown when online
 - Works with 0, 1, or multiple images
 - `null` poi → renders nothing
+
+---
+
+## Epic 10: Optional Route + Walking Route
+
+### T34 — Handle optional tour route in TourMap
+
+**File:** `src/components/map/TourMap.tsx` (update T19)
+
+`tour.route` is now optional. Update TourMap to handle its absence:
+
+- If `tour.route` is present and non-empty: render `<Polyline>` as before; fit map bounds to the route on mount
+- If `tour.route` is absent or empty: skip the Polyline; fit map bounds to the waypoint coordinates instead (`L.latLngBounds(tour.waypoints.map(w => [w.coordinates.lat, w.coordinates.lng]))`)
+
+No change to props interface — `tour: Tour` already reflects the optional route.
+
+**Acceptance criteria:**
+
+- Tours with a route show the polyline and fit to it on mount
+- Tours without a route show only waypoint markers, map fits to them
+- No runtime error when `tour.route` is undefined
+
+---
+
+### T35 — Walking route mini-map in POIModal
+
+**File:** `src/components/poi/POIModal.tsx` (update T32)
+
+When `waypoint.walkingRoute` is present and has ≥ 2 points, show a small inline map below the description:
+
+- Dynamically imported with `ssr: false` (`dynamic(() => import('@/components/map/WalkingRouteMap'))`)
+- Create `src/components/map/WalkingRouteMap.tsx`:
+
+```ts
+interface WalkingRouteMapProps {
+  route: Coordinates[];
+  waypointLocation: Coordinates;
+  pois?: POI[];
+}
+```
+
+  - `<MapContainer>` with `zoomControl: false`, fits bounds to the route on mount
+  - `<TileLayer>` — same OSM/CartoDB dark based on `prefers-color-scheme`
+  - `<Polyline>` for the `walkingRoute` (contrasting accent color — e.g. orange to distinguish from the main route blue)
+  - `<CircleMarker>` at `waypointLocation` (matches the main user-position style)
+  - For each POI in `pois` where `poi.coordinates` is set: render a `<Marker>` with a numbered `divIcon` (1, 2, 3…). Tapping a POI marker fires the same `onPoiTap` callback used by the POI card row, opening `POIDetailSheet`
+  - Fixed height: `h-48` (192px)
+  - Label above the map: "Šetnja po lokaciji" / "Walking route" based on locale
+
+**Acceptance criteria:**
+
+- Mini-map only rendered when `waypoint.walkingRoute` has ≥ 2 points
+- Waypoints without `walkingRoute` show no map (no regression to T32)
+- Map fits tightly to the walking route on first render
+- POIs with `coordinates` appear as numbered markers on the map; tapping one opens `POIDetailSheet`
+- POIs without `coordinates` appear only in the card list below (no marker), no crash
+- Works offline (OSM tiles cached by T18 — same tile layer)

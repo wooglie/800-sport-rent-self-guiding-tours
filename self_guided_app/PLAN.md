@@ -115,7 +115,7 @@ Called immediately after successful token validation, while still online. Return
     "difficulty": "easy | moderate | hard",
     "coverImage": "string (absolute URL)",
     "startLocation": { "lat": 0.0, "lng": 0.0 },
-    "route": [{ "lat": 0.0, "lng": 0.0 }],
+    "route": [{ "lat": 0.0, "lng": 0.0 }],  // optional — may be absent
     "waypoints": [
       {
         "id": "string",
@@ -123,7 +123,8 @@ Called immediately after successful token validation, while still online. Return
         "triggerRadiusMeters": 50,
         "name": { "hr": "string", "en": "string" },
         "description": { "hr": "string", "en": "string" },
-        "images": ["string (absolute URL)"]
+        "images": ["string (absolute URL)"],
+        "walkingRoute": [{ "lat": 0.0, "lng": 0.0 }]  // optional — guided walking path inside waypoint area
       }
     ]
   }
@@ -211,7 +212,7 @@ type TourSummary = {
 // API also returns createdAt/updatedAt which the app ignores but should not break on
 type Tour = TourSummary & {
   startLocation: Coordinates;
-  route: Coordinates[];
+  route?: Coordinates[];   // optional — not all tours have a GPS track
   waypoints: Waypoint[];
   createdAt?: string;
   updatedAt?: string;
@@ -225,6 +226,7 @@ type Waypoint = {
   description: Record<Locale, string>;  // short plain-text description
   images: string[];
   richDescription?: Record<Locale, string>; // long Markdown content
+  walkingRoute?: Coordinates[];             // optional guided walking path inside the waypoint area
   pois?: POI[];                             // sub-points of interest
 };
 
@@ -233,6 +235,7 @@ type POI = {
   title: Record<Locale, string>;
   description: Record<Locale, string>; // Markdown
   images: string[];
+  coordinates?: Coordinates;            // optional map pin — shown on the walking route map
   videoUrl?: string;                    // YouTube / Vimeo embed URL
 };
 

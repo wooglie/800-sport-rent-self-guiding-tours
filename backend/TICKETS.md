@@ -7,7 +7,7 @@ Read `PLAN.md` fully before starting. Key things to keep in mind:
 - Three DynamoDB tables: Users, AccessTokens, Tours
 - API Gateway is Regional (eu-central-1), not Edge-optimized
 
-> ✅ **Tickets B01–B25 are complete.** Backend is deployed to AWS (eu-central-1) behind CloudFront. See B26+ below for new work.
+> ✅ **Tickets B01–B28 are complete.** Backend is deployed to AWS (eu-central-1) behind CloudFront.
 
 ---
 
@@ -533,3 +533,68 @@ Replace manual validation in `src/functions/tours/create/handler.ts` and `src/fu
 - `sam build` succeeds with zod added
 - Invalid tour body (missing `name.en`, bad slug, route < 2 points) returns 400 with a descriptive message
 - Valid tour body passes through unchanged
+
+---
+
+### B27 — Delete access token (unused only)
+
+**File:** `src/functions/tokens/delete/handler.ts`
+
+- Protected by admin authorizer
+- Path param: `code`
+- `GetItem` from AccessTokens → 404 if not found
+- If `firstScannedAt` is **not** null → return `403 { error: "Token has already been used and cannot be deleted" }`
+- `DeleteItem`
+- Return `noContent()`
+
+Wire in `template.yaml`:
+
+```yaml
+DeleteTokenFunction:
+  Path: /tokens/{code}
+  Method: DELETE
+  Auth: AdminAuthorizer
+```
+
+**Acceptance criteria:**
+
+- Returns 204 on successful delete of an unused token
+- Returns 403 if token has been scanned at least once
+- Returns 404 if token does not exist
+
+---
+
+### B28 — Optional route + walkingRoute on Waypoint + coordinates on POI
+
+**File:** `src/lib/schemas.ts`
+
+Three schema changes:
+
+1. Make `route` optional on `TourInputSchema` — some tours may not have a GPS track yet:
+
+```ts
+route: z.array(CoordinatesSchema).min(2, 'Route must have at least 2 points').optional(),
+```
+
+2. Add optional `walkingRoute` to `WaypointSchema` — a guided walking path inside a waypoint area (e.g. "walk through the old town square and stop at these 3 spots"):
+
+```ts
+walkingRoute: z.array(CoordinatesSchema).optional(),
+```
+
+3. Add optional `coordinates` to `POISchema` — a map pin so the self-guided app can show each POI as a numbered marker on the walking route mini-map:
+
+```ts
+coordinates: CoordinatesSchema.optional(),
+```
+
+No handler changes needed — all fields are passed through unchanged by the create/update handlers since they merge/spread the validated body.
+
+**Acceptance criteria:**
+
+- Tour create/update with no `route` field succeeds (does not return 400)
+- Tour create/update with `route: []` or `route` with 1 point still fails with 400 (min(2) still applies when the field is present)
+- Waypoint with `walkingRoute: [{ lat, lng }, ...]` is stored and returned correctly
+- POI with `coordinates: { lat, lng }` is stored and returned correctly
+- POI without `coordinates` is stored and returned correctly (field absent, not null)
+- `sam build` succeeds
