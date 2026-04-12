@@ -33,6 +33,10 @@ jobs:
           aws-secret-access-key: ${{ secrets.BACKEND_DEPLOY_AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-central-1
 
+      - name: Install dependencies
+        run: pnpm install
+        working-directory: backend
+
       - name: Build
         run: sam build
         working-directory: backend
