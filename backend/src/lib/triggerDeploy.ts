@@ -14,24 +14,29 @@ export async function triggerTourAppDeploy(): Promise<void> {
 
   if (!token || !repo) return;
 
+  const url = `https://api.github.com/repos/${repo}/actions/workflows/${workflow}/dispatches`;
+  console.log(`triggerTourAppDeploy: POST ${url} (ref: ${branch})`);
+
   try {
-    await fetch(
-      `https://api.github.com/repos/${repo}/actions/workflows/${workflow}/dispatches`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/vnd.github+json",
-          "X-GitHub-Api-Version": "2022-11-28",
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ ref: branch }),
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "Content-Type": "application/json",
       },
-    );
-    console.log("Triggered tour app deploy workflow");
-    // 204 No Content on success — nothing to parse.
+      body: JSON.stringify({ ref: branch }),
+    });
+
+    if (res.status === 204) {
+      console.log("triggerTourAppDeploy: workflow dispatched successfully");
+    } else {
+      const body = await res.text();
+      console.error(`triggerTourAppDeploy: unexpected status ${res.status}: ${body}`);
+    }
   } catch (err) {
     // A failed deploy trigger must never roll back a successful tour save.
-    console.error("triggerTourAppDeploy failed", err);
+    console.error("triggerTourAppDeploy: fetch failed", err);
   }
 }
