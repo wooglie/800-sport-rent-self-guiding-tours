@@ -45,5 +45,20 @@ jobs:
         working-directory: backend
 
       - name: Deploy
-        run: sam deploy
+        run: |
+          sam deploy \
+            --stack-name sport-rent-backend \
+            --s3-prefix sport-rent-backend \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --no-confirm-changeset \
+            --resolve-s3 \
+            --region eu-central-1 \
+            --parameter-overrides \
+              AdminJwtSecret="${{ secrets.ADMIN_JWT_SECRET }}" \
+              AdminRefreshSecret="${{ secrets.ADMIN_REFRESH_SECRET }}" \
+              TourJwtSecret="${{ secrets.TOUR_JWT_SECRET }}" \
+              AdminApiKey="${{ secrets.ADMIN_API_KEY }}" \
+              CloudFrontCertArn="${{ secrets.CLOUDFRONT_CERT_ARN }}" \
+              GithubDeployToken="${{ secrets.GH_DEPLOY_TOKEN }}" \
+              GithubRepo="800-sport-rent-self-guiding-tours"
         working-directory: backend
