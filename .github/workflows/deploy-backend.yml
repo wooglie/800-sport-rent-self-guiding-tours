@@ -60,5 +60,5 @@ jobs:
               AdminApiKey="${{ secrets.ADMIN_API_KEY }}" \
               CloudFrontCertArn="${{ secrets.CLOUDFRONT_CERT_ARN }}" \
               GithubDeployToken="${{ secrets.GH_DEPLOY_TOKEN }}" \
-              GithubRepo="800-sport-rent-self-guiding-tours"
+              GithubRepo="wooglie/800-sport-rent-self-guiding-tours"
         working-directory: backend
