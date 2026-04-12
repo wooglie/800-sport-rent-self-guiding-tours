@@ -20,9 +20,9 @@ One SAM template defines all AWS infrastructure: DynamoDB, Lambda, API Gateway, 
 | API Gateway               | REST, Regional, eu-central-1                               |
 | API Gateway Custom Domain | api.sport-rent.800.hr (ACM cert in eu-central-1)           |
 | Lambda Authorizer         | admin.ts (admin JWT), tour.ts (tour JWT)                   |
-| S3::Bucket                | Admin panel static files                                   |
-| CloudFront::Distribution  | admin.sport-rent.800.hr (ACM cert ARN passed as parameter) |
-| CloudFront OAC            | Origin Access Control for S3                               |
+| S3::Bucket (x2)           | Admin panel static files + self-guided tour app files      |
+| CloudFront::Distribution  | One per static app (admin panel + tour app) + one for API  |
+| CloudFront OAC (x2)       | Origin Access Control for each S3 bucket                   |
 
 ---
 

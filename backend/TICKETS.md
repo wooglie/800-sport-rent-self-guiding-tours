@@ -590,6 +590,67 @@ coordinates: CoordinatesSchema.optional(),
 
 No handler changes needed — all fields are passed through unchanged by the create/update handlers since they merge/spread the validated body.
 
+---
+
+### B29 — S3 + CloudFront for self-guided tour app
+
+**File:** `template.yaml`
+
+Mirror the admin panel S3 + CloudFront setup (B08) for the self-guided tour app:
+
+- `TourAppBucket` — S3 bucket, all public access blocked, name: `${StackName}-tour-app`
+- `TourAppOAC` — CloudFront Origin Access Control (`${StackName}-tour-app-oac`)
+- `TourAppBucketPolicy` — allows CloudFront OAC to `s3:GetObject`
+- `TourAppDistribution` — CloudFront distribution:
+  - Origin: `TourAppBucket` (via OAC)
+  - `DefaultRootObject: index.html`
+  - `PriceClass_100`
+  - `CachingOptimized` policy
+  - `CustomErrorResponses`: 404 → `/404.html` (200), 403 → `/index.html` (200) — for SPA routing
+- Outputs: `TourAppBucketName`, `TourAppDistributionId`, `TourAppDomain`
+
+> ✅ **Already implemented in template.yaml.**
+
+**Deploy:**
+
+```bash
+sam deploy  # picks up new resources
+aws s3 sync self_guided_app/out s3://$(sam list stack-outputs --stack-name sport-rent-backend --output json | jq -r '.[] | select(.OutputKey=="TourAppBucketName") | .OutputValue')
+```
+
+**Acceptance criteria:**
+
+- `sam deploy` creates bucket + CloudFront distribution
+- Uploading the Next.js `/out` directory and opening the CloudFront domain shows the app
+
+---
+
+### B28 — Optional route + walkingRoute on Waypoint + coordinates on POI
+
+**File:** `src/lib/schemas.ts`
+
+Three schema changes:
+
+1. Make `route` optional on `TourInputSchema` — some tours may not have a GPS track yet:
+
+```ts
+route: z.array(CoordinatesSchema).min(2, 'Route must have at least 2 points').optional(),
+```
+
+2. Add optional `walkingRoute` to `WaypointSchema` — a guided walking path inside a waypoint area (e.g. "walk through the old town square and stop at these 3 spots"):
+
+```ts
+walkingRoute: z.array(CoordinatesSchema).optional(),
+```
+
+3. Add optional `coordinates` to `POISchema` — a map pin so the self-guided app can show each POI as a numbered marker on the walking route mini-map:
+
+```ts
+coordinates: CoordinatesSchema.optional(),
+```
+
+No handler changes needed — all fields are passed through unchanged by the create/update handlers since they merge/spread the validated body.
+
 **Acceptance criteria:**
 
 - Tour create/update with no `route` field succeeds (does not return 400)

@@ -29,9 +29,11 @@ Deployed as a static site to AWS S3 + CloudFront. No server-side rendering.
 
 ```
 next build        → /out directory (static HTML/CSS/JS)
-aws s3 sync /out  → S3 bucket
-CloudFront        → CDN + HTTPS + routing
+aws s3 sync /out  → TourAppBucket (provisioned in backend/template.yaml)
+CloudFront        → TourAppDistribution — CDN + HTTPS + SPA routing
 ```
+
+S3 bucket name and CloudFront domain are outputs of the backend SAM stack (`TourAppBucketName`, `TourAppDomain`).
 
 `next.config.js` must have:
 

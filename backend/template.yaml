@@ -28,6 +28,13 @@ Parameters:
   TourAppUrl:
     Type: String
     Default: "https://app.sport-rent.800.hr"
+  RootDomain:
+    Type: String
+    Default: "sport-rent.800.hr"
+    Description: Root domain used to construct subdomains (app, admin, api)
+  CloudFrontCertArn:
+    Type: String
+    Description: ARN of the ACM certificate from cert-stack (must be in us-east-1)
 
 Globals:
   Function:
@@ -50,7 +57,6 @@ Globals:
 # ─── DynamoDB Tables ──────────────────────────────────────────────────────────
 
 Resources:
-
   UsersTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -615,6 +621,31 @@ Resources:
 
   # ─── Admin Panel: S3 + CloudFront ─────────────────────────────────────────────
 
+  AdminPanelRouterFunction:
+    Type: AWS::CloudFront::Function
+    Properties:
+      Name: !Sub "${AWS::StackName}-admin-router"
+      AutoPublish: true
+      FunctionConfig:
+        Comment: Rewrite extensionless paths to /index.html for Next.js static export
+        Runtime: cloudfront-js-2.0
+      FunctionCode: |
+        function handler(event) {
+          var request = event.request;
+          var uri = request.uri;
+          // Leave files with extensions untouched (JS, CSS, images, etc.)
+          if (uri.match(/\.[a-zA-Z0-9]+$/)) {
+            return request;
+          }
+          // Append index.html to directory-style paths
+          if (uri.endsWith('/')) {
+            request.uri += 'index.html';
+          } else {
+            request.uri += '/index.html';
+          }
+          return request;
+        }
+
   AdminPanelBucket:
     Type: AWS::S3::Bucket
     Properties:
@@ -658,6 +689,12 @@ Resources:
         Enabled: true
         DefaultRootObject: index.html
         PriceClass: PriceClass_100
+        Aliases:
+          - !Sub "admin.${RootDomain}"
+        ViewerCertificate:
+          AcmCertificateArn: !Ref CloudFrontCertArn
+          SslSupportMethod: sni-only
+          MinimumProtocolVersion: TLSv1.2_2021
         Origins:
           - Id: S3Origin
             DomainName: !GetAtt AdminPanelBucket.RegionalDomainName
@@ -674,10 +711,118 @@ Resources:
           CachedMethods:
             - GET
             - HEAD
+          FunctionAssociations:
+            - EventType: viewer-request
+              FunctionARN: !GetAtt AdminPanelRouterFunction.FunctionMetadata.FunctionARN
         CustomErrorResponses:
           - ErrorCode: 404
             ResponseCode: 200
             ResponsePagePath: /404.html
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /404.html
+
+  # ─── Tour App: CloudFront Router Function ────────────────────────────────────
+
+  TourAppRouterFunction:
+    Type: AWS::CloudFront::Function
+    Properties:
+      Name: !Sub "${AWS::StackName}-tour-app-router"
+      AutoPublish: true
+      FunctionConfig:
+        Comment: Rewrite extensionless paths to /index.html for Next.js static export
+        Runtime: cloudfront-js-2.0
+      FunctionCode: |
+        function handler(event) {
+          var request = event.request;
+          var uri = request.uri;
+          // Leave files with extensions untouched (JS, CSS, images, SW, etc.)
+          if (uri.match(/\.[a-zA-Z0-9]+$/)) {
+            return request;
+          }
+          // Append index.html to directory-style paths
+          if (uri.endsWith('/')) {
+            request.uri += 'index.html';
+          } else {
+            request.uri += '/index.html';
+          }
+          return request;
+        }
+
+  # ─── Tour App: S3 + CloudFront ───────────────────────────────────────────────
+
+  TourAppBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${AWS::StackName}-tour-app"
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+
+  TourAppOAC:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub "${AWS::StackName}-tour-app-oac"
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  TourAppBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref TourAppBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AllowCloudFrontOAC
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub "${TourAppBucket.Arn}/*"
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${TourAppDistribution}"
+
+  TourAppDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        DefaultRootObject: index.html
+        PriceClass: PriceClass_100
+        Aliases:
+          - !Sub "app.${RootDomain}"
+        ViewerCertificate:
+          AcmCertificateArn: !Ref CloudFrontCertArn
+          SslSupportMethod: sni-only
+          MinimumProtocolVersion: TLSv1.2_2021
+        Origins:
+          - Id: S3Origin
+            DomainName: !GetAtt TourAppBucket.RegionalDomainName
+            OriginAccessControlId: !GetAtt TourAppOAC.Id
+            S3OriginConfig:
+              OriginAccessIdentity: ""
+        DefaultCacheBehavior:
+          TargetOriginId: S3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6 # CachingOptimized
+          AllowedMethods:
+            - GET
+            - HEAD
+          CachedMethods:
+            - GET
+            - HEAD
+          FunctionAssociations:
+            - EventType: viewer-request
+              FunctionARN: !GetAtt TourAppRouterFunction.FunctionMetadata.FunctionARN
+        CustomErrorResponses:
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
           - ErrorCode: 403
             ResponseCode: 200
             ResponsePagePath: /index.html
@@ -690,6 +835,12 @@ Resources:
       DistributionConfig:
         Enabled: true
         PriceClass: PriceClass_100
+        Aliases:
+          - !Sub "api.${RootDomain}"
+        ViewerCertificate:
+          AcmCertificateArn: !Ref CloudFrontCertArn
+          SslSupportMethod: sni-only
+          MinimumProtocolVersion: TLSv1.2_2021
         Origins:
           - Id: ApiGatewayOrigin
             DomainName: !Sub "${Api}.execute-api.${AWS::Region}.amazonaws.com"
@@ -712,12 +863,43 @@ Resources:
             - GET
             - HEAD
             - OPTIONS
-          CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad        # CachingDisabled
-          OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac  # AllViewerExceptHostHeader
+          CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad # CachingDisabled
+          OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac # AllViewerExceptHostHeader
 
 # ─── Outputs ──────────────────────────────────────────────────────────────────
 
 Outputs:
+  # ── Custom domain subdomains ────────────────────────────────────────────────
+  # Point each subdomain CNAME to the corresponding CloudFront domain below.
+
+  AppSubdomain:
+    Description: "Tour app custom domain (point CNAME to TourAppCloudFrontDomain)"
+    Value: !Sub "https://app.${RootDomain}"
+
+  AdminSubdomain:
+    Description: "Admin panel custom domain (point CNAME to AdminPanelCloudFrontDomain)"
+    Value: !Sub "https://admin.${RootDomain}"
+
+  ApiSubdomain:
+    Description: "API custom domain (point CNAME to ApiCloudFrontDomain)"
+    Value: !Sub "https://api.${RootDomain}"
+
+  # ── CloudFront domain names (CNAME targets for Netlify) ────────────────────
+
+  TourAppCloudFrontDomain:
+    Description: CloudFront domain for tour app (CNAME target)
+    Value: !GetAtt TourAppDistribution.DomainName
+
+  AdminPanelCloudFrontDomain:
+    Description: CloudFront domain for admin panel (CNAME target)
+    Value: !GetAtt AdminPanelDistribution.DomainName
+
+  ApiCloudFrontDomain:
+    Description: CloudFront domain for API (CNAME target)
+    Value: !GetAtt ApiDistribution.DomainName
+
+  # ── Internal / deployment references ───────────────────────────────────────
+
   ApiGatewayUrl:
     Description: Direct API Gateway URL (internal)
     Value: !Sub "https://${Api}.execute-api.${AWS::Region}.amazonaws.com/prod"
@@ -740,4 +922,16 @@ Outputs:
 
   AdminPanelDomain:
     Description: CloudFront domain for admin panel
-    Value: !GetAtt AdminPanelDistribution.DomainName
+    Value: !Sub "https://${AdminPanelDistribution.DomainName}"
+
+  TourAppBucketName:
+    Description: S3 bucket name for self-guided tour app static files
+    Value: !Ref TourAppBucket
+
+  TourAppDistributionId:
+    Description: CloudFront distribution ID for self-guided tour app
+    Value: !Ref TourAppDistribution
+
+  TourAppDomain:
+    Description: CloudFront domain for self-guided tour app
+    Value: !Sub "https://${TourAppDistribution.DomainName}"

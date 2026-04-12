@@ -37,9 +37,10 @@ export function AuthContent() {
       return;
     }
 
-    // Already have a valid session? Redirect immediately.
+    // Already have a valid session for this exact token? Redirect immediately.
+    // If a different token is provided (new QR code), fall through to re-validate.
     const existing = getSession();
-    if (existing && isSessionValid(existing)) {
+    if (existing && isSessionValid(existing) && existing.token === code) {
       router.replace(`/${getRedirectLocale()}`);
       return;
     }

@@ -1,0 +1,29 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: 800 Sport Rent — ACM certificate for CloudFront (must be deployed to us-east-1)
+
+Parameters:
+  RootDomain:
+    Type: String
+    Default: "sport-rent.800.hr"
+    Description: Root domain used to construct certificate SANs (app, admin, api)
+
+Resources:
+  CloudFrontCertificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: !Sub "app.${RootDomain}"
+      SubjectAlternativeNames:
+        - !Sub "admin.${RootDomain}"
+        - !Sub "api.${RootDomain}"
+      ValidationMethod: DNS
+
+Outputs:
+  CertificateArn:
+    Description: ACM certificate ARN — pass as CloudFrontCertArn when deploying the main stack
+    Value: !Ref CloudFrontCertificate
+    Export:
+      Name: !Sub "${AWS::StackName}-CertificateArn"
+
+  CertValidationCommand:
+    Description: Run this command to retrieve the 3 CNAME validation records for Netlify DNS
+    Value: !Sub "aws acm describe-certificate --certificate-arn ${CloudFrontCertificate} --region us-east-1 --query 'Certificate.DomainValidationOptions[*].ResourceRecord'"
