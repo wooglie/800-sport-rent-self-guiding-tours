@@ -37,7 +37,7 @@ export const handler = async (
 
     await putItem({ TableName: table, Item: updatedTour });
 
-    void triggerTourAppDeploy();
+    await triggerTourAppDeploy();
     return ok(updatedTour);
   } catch (err) {
     console.error("updateTour error", err);

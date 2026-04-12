@@ -26,8 +26,9 @@ export async function triggerTourAppDeploy(): Promise<void> {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ ref: branch }),
-      }
+      },
     );
+    console.log("Triggered tour app deploy workflow");
     // 204 No Content on success — nothing to parse.
   } catch (err) {
     // A failed deploy trigger must never roll back a successful tour save.

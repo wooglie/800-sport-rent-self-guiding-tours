@@ -25,7 +25,7 @@ export const handler = async (
 
     await putItem({ TableName: table, Item: tour });
 
-    void triggerTourAppDeploy();
+    await triggerTourAppDeploy();
     return created(tour);
   } catch (err) {
     console.error("createTour error", err);
