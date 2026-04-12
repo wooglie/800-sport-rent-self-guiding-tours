@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: [backend/**]
+    paths: [backend/**, .github/workflows/deploy-backend.yml]
 
 jobs:
   deploy:

@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: [self_guided_app/**]
+    paths: [self_guided_app/**, .github/workflows/deploy-tour-app.yml]
 
 jobs:
   deploy:

@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: [admin_panel/**]
+    paths: [admin_panel/**, .github/workflows/deploy-admin-panel.yml]
 
 jobs:
   deploy:
