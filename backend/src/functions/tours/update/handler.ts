@@ -2,6 +2,7 @@ import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { getItem, putItem } from "../../../lib/dynamodb";
 import { ok, badRequest, notFound, serverError } from "../../../lib/response";
 import { TourUpdateSchema } from "../../../lib/schemas";
+import { triggerTourAppDeploy } from "../../../lib/triggerDeploy";
 
 export const handler = async (
   event: APIGatewayProxyEvent,
@@ -36,6 +37,7 @@ export const handler = async (
 
     await putItem({ TableName: table, Item: updatedTour });
 
+    void triggerTourAppDeploy();
     return ok(updatedTour);
   } catch (err) {
     console.error("updateTour error", err);

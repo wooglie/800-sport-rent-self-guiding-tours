@@ -28,6 +28,15 @@ Parameters:
   TourAppUrl:
     Type: String
     Default: "https://app.sport-rent.800.hr"
+  GithubDeployToken:
+    Type: String
+    NoEcho: true
+    Default: ""
+    Description: GitHub Fine-Grained PAT with Actions write scope — triggers deploy-tour-app.yml
+  GithubRepo:
+    Type: String
+    Default: ""
+    Description: GitHub repo in "owner/repo" format
   RootDomain:
     Type: String
     Default: "sport-rent.800.hr"
@@ -53,6 +62,10 @@ Globals:
         ADMIN_JWT_EXPIRY_MINUTES: !Ref AdminJwtExpiryMinutes
         ADMIN_REFRESH_EXPIRY_DAYS: !Ref AdminRefreshExpiryDays
         TOUR_APP_URL: !Ref TourAppUrl
+        GITHUB_DEPLOY_TOKEN: !Ref GithubDeployToken
+        GITHUB_REPO: !Ref GithubRepo
+        GITHUB_WORKFLOW_ID: deploy-tour-app.yml
+        GITHUB_BRANCH: main
 
 # ─── DynamoDB Tables ──────────────────────────────────────────────────────────
 
@@ -866,6 +879,72 @@ Resources:
           CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad # CachingDisabled
           OriginRequestPolicyId: b689b0a8-53d0-40ab-baf2-68738e2966ac # AllViewerExceptHostHeader
 
+  # ─── GitHub Actions deploy credentials ───────────────────────────────────────
+  # After sam deploy, copy outputs to GitHub repo secrets as shown below.
+
+  # Tour app — secrets: DEPLOY_AWS_ACCESS_KEY_ID / DEPLOY_AWS_SECRET_ACCESS_KEY
+  TourAppDeployUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: !Sub "${AWS::StackName}-tour-app-deploy"
+      Policies:
+        - PolicyName: TourAppDeploy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: s3:*
+                Resource:
+                  - !GetAtt TourAppBucket.Arn
+                  - !Sub "${TourAppBucket.Arn}/*"
+              - Effect: Allow
+                Action: cloudfront:CreateInvalidation
+                Resource: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${TourAppDistribution}"
+
+  TourAppDeployAccessKey:
+    Type: AWS::IAM::AccessKey
+    Properties:
+      UserName: !Ref TourAppDeployUser
+
+  # Admin panel — secrets: ADMIN_DEPLOY_AWS_ACCESS_KEY_ID / ADMIN_DEPLOY_AWS_SECRET_ACCESS_KEY
+  AdminPanelDeployUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: !Sub "${AWS::StackName}-admin-panel-deploy"
+      Policies:
+        - PolicyName: AdminPanelDeploy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: s3:*
+                Resource:
+                  - !GetAtt AdminPanelBucket.Arn
+                  - !Sub "${AdminPanelBucket.Arn}/*"
+              - Effect: Allow
+                Action: cloudfront:CreateInvalidation
+                Resource: !Sub "arn:aws:cloudfront::${AWS::AccountId}:distribution/${AdminPanelDistribution}"
+
+  AdminPanelDeployAccessKey:
+    Type: AWS::IAM::AccessKey
+    Properties:
+      UserName: !Ref AdminPanelDeployUser
+
+  # Backend (SAM) — secrets: BACKEND_DEPLOY_AWS_ACCESS_KEY_ID / BACKEND_DEPLOY_AWS_SECRET_ACCESS_KEY
+  # Needs broad permissions to manage CloudFormation, Lambda, API Gateway, DynamoDB, IAM, CloudFront, S3.
+  BackendDeployUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: !Sub "${AWS::StackName}-backend-deploy"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/PowerUserAccess
+        - arn:aws:iam::aws:policy/IAMFullAccess
+
+  BackendDeployAccessKey:
+    Type: AWS::IAM::AccessKey
+    Properties:
+      UserName: !Ref BackendDeployUser
+
 # ─── Outputs ──────────────────────────────────────────────────────────────────
 
 Outputs:
@@ -935,3 +1014,27 @@ Outputs:
   TourAppDomain:
     Description: CloudFront domain for self-guided tour app
     Value: !Sub "https://${TourAppDistribution.DomainName}"
+
+  TourAppDeployAccessKeyId:
+    Description: "→ GitHub secret: DEPLOY_AWS_ACCESS_KEY_ID"
+    Value: !Ref TourAppDeployAccessKey
+
+  TourAppDeploySecretAccessKey:
+    Description: "→ GitHub secret: DEPLOY_AWS_SECRET_ACCESS_KEY"
+    Value: !GetAtt TourAppDeployAccessKey.SecretAccessKey
+
+  AdminPanelDeployAccessKeyId:
+    Description: "→ GitHub secret: ADMIN_DEPLOY_AWS_ACCESS_KEY_ID"
+    Value: !Ref AdminPanelDeployAccessKey
+
+  AdminPanelDeploySecretAccessKey:
+    Description: "→ GitHub secret: ADMIN_DEPLOY_AWS_SECRET_ACCESS_KEY"
+    Value: !GetAtt AdminPanelDeployAccessKey.SecretAccessKey
+
+  BackendDeployAccessKeyId:
+    Description: "→ GitHub secret: BACKEND_DEPLOY_AWS_ACCESS_KEY_ID"
+    Value: !Ref BackendDeployAccessKey
+
+  BackendDeploySecretAccessKey:
+    Description: "→ GitHub secret: BACKEND_DEPLOY_AWS_SECRET_ACCESS_KEY"
+    Value: !GetAtt BackendDeployAccessKey.SecretAccessKey
