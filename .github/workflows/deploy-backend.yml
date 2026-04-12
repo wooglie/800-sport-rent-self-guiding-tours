@@ -33,12 +33,12 @@ jobs:
           aws-secret-access-key: ${{ secrets.BACKEND_DEPLOY_AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-central-1
 
+      - name: Install esbuild
+        run: npm install -g esbuild
+
       - name: Install dependencies
         run: pnpm install
         working-directory: backend
-
-      - name: Add backend node_modules/.bin to PATH
-        run: echo "${{ github.workspace }}/backend/node_modules/.bin" >> $GITHUB_PATH
 
       - name: Build
         run: sam build
