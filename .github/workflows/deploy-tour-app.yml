@@ -2,6 +2,9 @@ name: Deploy Tour App
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [self_guided_app/**]
 
 jobs:
   deploy:

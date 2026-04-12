@@ -2,6 +2,9 @@ name: Deploy Admin Panel
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [admin_panel/**]
 
 jobs:
   deploy:
