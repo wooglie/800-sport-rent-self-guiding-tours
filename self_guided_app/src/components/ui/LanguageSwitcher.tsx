@@ -5,7 +5,11 @@ import { useRouter, usePathname } from "next/navigation";
 
 const LOCALE_KEY = process.env.NEXT_PUBLIC_LOCALE_KEY ?? "sport_rent_locale";
 
-export function LanguageSwitcher() {
+interface LanguageSwitcherProps {
+  compact?: boolean;
+}
+
+export function LanguageSwitcher({ compact = false }: LanguageSwitcherProps) {
   const locale = useLocale();
   const router = useRouter();
   const pathname = usePathname();
@@ -22,7 +26,7 @@ export function LanguageSwitcher() {
         <button
           key={loc}
           onClick={() => switchLocale(loc)}
-          className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+          className={`${compact ? "px-2.5 py-1 text-xs" : "px-4 py-1.5 text-sm"} rounded-lg font-semibold transition-all ${
             locale === loc
               ? "bg-brand text-white shadow-sm"
               : "text-muted-foreground hover:text-foreground"

@@ -12,6 +12,7 @@ import { POIModal } from "@/components/poi/POIModal";
 import { POIDetailSheet } from "@/components/poi/POIDetailSheet";
 import { TourProgress } from "@/components/tour/TourProgress";
 import { MapErrorBoundary } from "@/components/map/MapErrorBoundary";
+import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 import type { Waypoint, Locale, POI } from "@/types/tour";
 
 const TourMap = dynamic(() => import("@/components/map/TourMap"), { ssr: false });
@@ -88,6 +89,7 @@ export function ActiveTourClient({ id }: ActiveTourClientProps) {
             visitedCount={triggeredIds.size}
           />
         </div>
+        <LanguageSwitcher compact />
       </div>
 
       {/* Full-screen map */}

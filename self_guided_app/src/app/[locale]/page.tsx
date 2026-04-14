@@ -7,6 +7,7 @@ import { LandingPage } from "@/components/ui/LandingPage";
 import { TourCard } from "@/components/tour/TourCard";
 import { LockedBanner } from "@/components/ui/LockedBanner";
 import { ShareButton } from "@/components/ui/ShareButton";
+import { LanguageSwitcher } from "@/components/ui/LanguageSwitcher";
 import { TOUR_CATALOG } from "@/catalog";
 import type { Locale } from "@/types/tour";
 
@@ -44,9 +45,12 @@ export default function TourListPage() {
     <div className="flex flex-col min-h-screen">
       <header className="sticky top-0 z-10 bg-background/90 backdrop-blur border-b border-card-border px-4 py-3 flex items-center justify-between">
         <h1 className="text-xl font-bold text-foreground">{t("title")}</h1>
-        {appState === "active" && session && (
-          <ShareButton token={session.token} />
-        )}
+        <div className="flex items-center gap-2">
+          <LanguageSwitcher compact />
+          {appState === "active" && session && (
+            <ShareButton token={session.token} />
+          )}
+        </div>
       </header>
 
       <main className="flex-1 px-4 py-4 space-y-4">
