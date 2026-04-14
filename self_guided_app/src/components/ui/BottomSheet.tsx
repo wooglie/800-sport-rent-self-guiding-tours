@@ -20,25 +20,32 @@ export interface BottomSheetProps {
    */
   partialRatio?: number;
   /**
+   * When set, adds a third "minimized" snap point between closed and partial.
+   * The user can drag down from partial → minimized, then further to close.
+   * Must be less than partialRatio.
+   */
+  minimizedRatio?: number;
+  /**
    * Distance in px from the top of the viewport where the "full" snap stops.
    * Usually the height of the top bar.
    * @default 57
    */
   topOffset?: number;
   /**
-   * Fraction of partial height below which releasing a drag triggers close.
+   * Fraction of the current snap-point height below which releasing a drag
+   * triggers close. Applied to partial (when no minimizedRatio) or minimized.
    * @default 0.55
    */
   closeThreshold?: number;
 
   // ── Snap thresholds ───────────────────────────────────────────────────────
   /**
-   * Minimum px of height gained above partial to snap to full on release.
+   * Minimum px of height gained above the current snap to advance upward.
    * @default 50
    */
   snapUpPx?: number;
   /**
-   * Minimum px of height lost below full to snap back to partial on release.
+   * Minimum px of height lost below the current snap to drop downward.
    * @default 80
    */
   snapDownPx?: number;
@@ -58,6 +65,7 @@ export function BottomSheet({
   children,
   onClose,
   partialRatio    = 0.8,
+  minimizedRatio,
   topOffset       = 57,
   closeThreshold  = 0.55,
   snapUpPx        = 50,
@@ -68,7 +76,7 @@ export function BottomSheet({
   const sheetRef     = useRef<HTMLDivElement>(null);
   const dragZoneRef  = useRef<HTMLDivElement>(null);
   const contentRef   = useRef<HTMLDivElement>(null);
-  const snapRef      = useRef<"partial" | "full">("partial");
+  const snapRef      = useRef<"minimized" | "partial" | "full">("partial");
   const dragging     = useRef(false);
   const startY       = useRef(0);
   const startH       = useRef(0);
@@ -83,6 +91,10 @@ export function BottomSheet({
   const fullH = useCallback(
     () => window.innerHeight - topOffset,
     [topOffset],
+  );
+  const minimizedH = useCallback(
+    () => minimizedRatio ? Math.min(window.innerHeight * minimizedRatio, partialH() - 1) : 0,
+    [minimizedRatio, partialH],
   );
 
   // ── Close animation ────────────────────────────────────────────────────────
@@ -143,24 +155,40 @@ export function BottomSheet({
     const currentH = el.getBoundingClientRect().height;
     const ph       = partialH();
     const fh       = fullH();
+    const mh       = minimizedRatio ? minimizedH() : null;
 
     el.style.transition = `height ${DUR} ${EASE}`;
 
-    if (snapRef.current === "partial") {
-      if (currentH > ph + snapUpPx) {
-        el.style.height = `${fh}px`;
-        snapRef.current = "full";
-      } else if (currentH < ph * closeThreshold) {
-        triggerClose();
-      } else {
-        el.style.height = `${ph}px`;
-      }
-    } else {
+    if (snapRef.current === "full") {
       if (currentH < fh - snapDownPx) {
         el.style.height = `${ph}px`;
         snapRef.current = "partial";
       } else {
         el.style.height = `${fh}px`;
+      }
+    } else if (snapRef.current === "partial") {
+      if (currentH > ph + snapUpPx) {
+        el.style.height = `${fh}px`;
+        snapRef.current = "full";
+      } else if (mh !== null && currentH < ph - snapDownPx) {
+        // Drop to minimized snap point
+        el.style.height = `${mh}px`;
+        snapRef.current = "minimized";
+      } else if (mh === null && currentH < ph * closeThreshold) {
+        // No minimized state — close directly
+        triggerClose();
+      } else {
+        el.style.height = `${ph}px`;
+      }
+    } else {
+      // "minimized"
+      if (currentH > mh! + snapUpPx) {
+        el.style.height = `${ph}px`;
+        snapRef.current = "partial";
+      } else if (currentH < mh! * closeThreshold) {
+        triggerClose();
+      } else {
+        el.style.height = `${mh!}px`;
       }
     }
   }

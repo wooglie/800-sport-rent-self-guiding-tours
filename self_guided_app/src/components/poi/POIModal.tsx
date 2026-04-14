@@ -11,7 +11,8 @@ import { ImageGallery } from "@/components/ui/ImageGallery";
 import { POIDetailSheet } from "./POIDetailSheet";
 
 const WalkingRouteMap = dynamic(
-  () => import("@/components/map/WalkingRouteMap").then((m) => m.WalkingRouteMap),
+  () =>
+    import("@/components/map/WalkingRouteMap").then((m) => m.WalkingRouteMap),
   { ssr: false },
 );
 
@@ -28,8 +29,8 @@ export function POIModal({ waypoint, locale, onClose }: POIModalProps) {
 
   if (!waypoint) return null;
 
-  const richContent     = waypoint.richDescription?.[locale] ?? "";
-  const isLong          = richContent.length > 400;
+  const richContent = waypoint.richDescription?.[locale] ?? "";
+  const isLong = richContent.length > 400;
   const hasWalkingRoute = (waypoint.walkingRoute?.length ?? 0) >= 2;
 
   return (
@@ -44,12 +45,17 @@ export function POIModal({ waypoint, locale, onClose }: POIModalProps) {
         onClose={onClose}
         zIndex={1100}
         partialRatio={0.8}
+        minimizedRatio={0.5}
         topOffset={57}
         closeThreshold={0.55}
         snapUpPx={50}
         snapDownPx={80}
       >
-        <ImageGallery images={waypoint.images} alt={waypoint.name[locale]} height="h-52" />
+        <ImageGallery
+          images={waypoint.images}
+          alt={waypoint.name[locale]}
+          height="h-52"
+        />
 
         <div className="px-4 py-4 space-y-4">
           <p className="text-muted-foreground text-sm leading-relaxed">
@@ -58,7 +64,13 @@ export function POIModal({ waypoint, locale, onClose }: POIModalProps) {
 
           {richContent && (
             <div>
-              <div className={isLong && !richExpanded ? "max-h-32 overflow-hidden relative" : ""}>
+              <div
+                className={
+                  isLong && !richExpanded
+                    ? "max-h-32 overflow-hidden relative"
+                    : ""
+                }
+              >
                 <RichText content={richContent} />
                 {isLong && !richExpanded && (
                   <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-card" />
